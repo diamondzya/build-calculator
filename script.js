@@ -6,54 +6,6 @@
 
 "use strict";
 
-/* ---------- constants: unit weights (kg/m) for rebar ---------- */
-var BAR_WEIGHT = { "10": 0.617, "12": 0.888, "16": 1.580, "20": 2.470 };
-
-/* ---------- paint coverage rates (sqm per liter per coat) ---------- */
-var PAINT_COVERAGE = {
-  interior:    12,
-  exterior:    10,
-  primer:       8,
-  waterproofing: 6,
-  enamel:      11
-};
-var PAINT_LABEL = {
-  interior: "Interior Wall Paint",
-  exterior: "Exterior Paint",
-  primer: "Primer",
-  waterproofing: "Waterproofing Paint",
-  enamel: "Enamel Paint"
-};
-var LITER_PER_GALLON = 3.785;
-
-/* ---------- tile data: cm sizes + pcs per box ---------- */
-var TILE_DATA = {
-  "30x30": { w: 0.30, h: 0.30, pcsPerBox: 11 },
-  "40x40": { w: 0.40, h: 0.40, pcsPerBox: 6 },
-  "60x60": { w: 0.60, h: 0.60, pcsPerBox: 4 },
-  "30x60": { w: 0.30, h: 0.60, pcsPerBox: 8 }
-};
-
-/* ---------- concrete: per-cubic-meter material factors ---------- */
-/* mix ratios (cement:sand:gravel by volume) per structural element */
-var CONCRETE_MIX = {
-  footing: { cement: 0.44, sand: 0.88, gravel: 0.88 }, /* volume fractions of solid per 1 m3, pre-waste */
-  column:  { cement: 0.44, sand: 0.88, gravel: 0.88 },
-  beam:    { cement: 0.42, sand: 0.84, gravel: 0.84 },
-  slab:    { cement: 0.40, sand: 0.80, gravel: 0.80 }
-};
-var CEMENT_BAG_VOL = 0.035;     /* one 40kg bag ≈ 0.035 m3 */
-var WATER_PER_M3   = 165;       /* liters per cubic meter of concrete */
-
-/* ---------- nail: count per meter of run + per board ---------- */
-var NAIL_DATA = {
-  roofing:  { size: '2-inch', sizeIn: 2, perMeter: 6,  perBoard: 8,  label: "Roofing" },
-  framing:  { size: '3-inch', sizeIn: 3, perMeter: 4,  perBoard: 10, label: "Wood Framing" },
-  formwork: { size: '2-inch', sizeIn: 2, perMeter: 3,  perBoard: 6,  label: "Concrete Formwork" },
-  fence:    { size: '4-inch', sizeIn: 4, perMeter: 2,  perBoard: 5,  label: "Fence" }
-};
-var KG_PER_NAIL = 0.004; /* ~4 g per common nail, rough average */
-
 /* ---------- module metadata (nav + cards) ---------- */
 var MODULES = [
   { id: "steel",     title: "Anilyo / Steel",   fil: "Rebar",       icon: "fa-ruler-combined", desc: "Bars, length & weight for footing, column, beam, slab, stairs, fence." },
@@ -75,7 +27,7 @@ var QUANT_KEY = "buildcalc.quantities.v1";
 function $(sel, root) { return (root || document).querySelector(sel); }
 function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
-function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function num(v) { var n = Number(v); return Number.isFinite(n) ? n : NaN; }
 function fmt(n, dec) {
   if (dec === undefined) dec = 2;
   var v = Math.round(n * Math.pow(10, dec)) / Math.pow(10, dec);
@@ -98,7 +50,12 @@ function toast(msg, icon) {
     el.className = "toast";
     document.body.appendChild(el);
   }
-  el.innerHTML = (icon ? '<i class="fa-solid ' + icon + '"></i>' : "") + msg;
+  el.textContent = String(msg);
+  if (icon && /^fa-[a-z-]+$/.test(icon)) {
+    var i = document.createElement('i');
+    i.className = 'fa-solid ' + icon;
+    el.prepend(i);
+  }
   el.classList.add("is-show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function () { el.classList.remove("is-show"); }, 2600);
@@ -116,7 +73,8 @@ function loadJSON(key, fallback) {
   } catch (e) { return fallback; }
 }
 function saveJSON(key, val) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { toast("Storage full — could not save.", "fa-triangle-exclamation"); }
+  try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+  catch (e) { toast("Storage blocked or full — could not save.", "fa-triangle-exclamation"); return false; }
 }
 
 /* =========================================================
@@ -124,7 +82,8 @@ function saveJSON(key, val) {
    ========================================================= */
 function readPositive(input, label) {
   var v = num(input.value);
-  var bad = input.value.trim() === "" || v < 0;
+  var bad = input.value.trim() === "" || !Number.isFinite(v) || v < Number(input.min || 0) ||
+    (input.max !== "" && v > Number(input.max)) || (input.step === "1" && !Number.isSafeInteger(v));
   if (label && bad) {
     input.classList.add("is-invalid");
     input.setAttribute("aria-invalid", "true");
@@ -167,8 +126,8 @@ function selectModule(id, silent) {
   if (form && !silent) {
     /* instant recalculation on switching, using current field values */
     if (id === "converter") { updateConverter(); return; }
-    if (id === "cost") { runCost(); return; }
-    runCalc(form);
+    updateSteelFields();
+    runCalc(form, true);
   }
 }
 
@@ -226,7 +185,7 @@ function showResult(title, sub, rows, totals) {
 
   var panel = $("#result-panel");
   panel.hidden = false;
-  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  // Do not jump the viewport on every keystroke during live calculations.
 }
 
 function rowEl(label, fil, value, hero, total) {
@@ -259,264 +218,208 @@ function hideResult() {
    CALCULATORS
    ========================================================= */
 
-/* -------- 1. Steel / Anilyo -------- */
-function runSteel() {
-  var form = $("#form-steel");
-  if (validateForm(form)) { toast("Please fill in all measurements.", "fa-triangle-exclamation"); return; }
-
-  var project = $("#steel-project").value;
-  var L = num($("#steel-length").value);
-  var W = num($("#steel-width").value);
-  var H = num($("#steel-height").value);
-  var spacingM = num($("#steel-spacing").value) / 100;
-  var size = $(".chip.is-active", form) ? $(".chip.is-active", form).dataset.value : "12";
-
-  if (L <= 0 || W <= 0 || H <= 0) { toast("Measurements must be greater than zero.", "fa-triangle-exclamation"); return; }
-
-  /* number of bars across the section, plus 1 for the edge bar */
-  var barsAcross = Math.floor(W / spacingM) + 1;
-  var barsVertical = Math.floor(H / spacingM) + 1;
-  var bars = barsAcross + barsVertical;
-
-  var unitLen = L; /* bar length along the structural length */
-  var totalLen = bars * unitLen;
-  var weight = totalLen * BAR_WEIGHT[size];
-  var stdBar = 12; /* standard commercial bar length, meters */
-  var pieces = ceilInt(totalLen / stdBar);
-
-  var projectLabel = $("#steel-project").selectedOptions[0].text.split(" (")[0];
-
-  /* store quantities for the cost calculator */
-  storeQuantities("steel", { pieces: pieces, weight: weight });
-
-  showResult(
-    "Anilyo / Steel Requirement",
-    size + "mm rebar · " + projectLabel + " · spacing " + $("#steel-spacing").value + "cm",
-    [
-      { label: "Steel Bars Needed", fil: "piraso", value: fmt(bars, 0) + " pcs" },
-      { label: "Total Length", fil: "kabuuang haba", value: fmt(totalLen, 1) + " m" },
-      { label: "Estimated Weight", fil: "timbang", value: fmt(weight, 1) + " kg", hero: true },
-      { label: "Pieces to Buy", fil: "12m bars", value: fmt(pieces, 0) + " pcs" },
-      { label: "Unit Weight", fil: size + "mm rebar", value: BAR_WEIGHT[size] + " kg/m" }
-    ]
-  );
+/* =========================================================
+   CALCULATORS — all formulas live in calc-engine.js for testability.
+   ========================================================= */
+function field(id) { return document.getElementById(id).value; }
+function checked(id) { return document.getElementById(id).checked; }
+function priceField(id) { return field('price-' + id); }
+function showError(message, silent) {
+  hideResult();
+  var error = $('#calc-error');
+  error.textContent = message;
+  error.hidden = false;
+  if (!silent) toast(message, 'fa-triangle-exclamation');
 }
-
-/* -------- 2. Paint / Pintura -------- */
-function runPaint() {
-  var form = $("#form-paint");
-  if (validateForm(form)) { toast("Please fill in all measurements.", "fa-triangle-exclamation"); return; }
-
-  var type = $("#paint-type").value;
-  var L = num($("#paint-length").value);
-  var H = num($("#paint-height").value);
-  var walls = num($("#paint-walls").value);
-  var coats = num($("#paint-coats").value);
-
-  if (L <= 0 || H <= 0 || walls < 1) { toast("Measurements must be greater than zero.", "fa-triangle-exclamation"); return; }
-
-  var area = L * H * walls;              /* total sqm to paint */
-  var coatArea = area * coats;           /* sqm across all coats */
-  var coverage = PAINT_COVERAGE[type];   /* sqm per liter */
-  var liters = coatArea / coverage;
-  var gallons = liters / LITER_PER_GALLON;
-
-  /* primer is one coat at primer coverage, separate from finish */
-  var primerLiters = area / PAINT_COVERAGE.primer;
-  var primerGallons = primerLiters / LITER_PER_GALLON;
-
-  storeQuantities("paint", { gallons: gallons, liters: liters });
-
-  var message = "Your wall requires approximately " + fmt(liters, 1) + " liters of paint or " +
-                fmt(gallons, 1) + " gallon" + (gallons === 1 ? "" : "s") + ".";
-
-  showResult(
-    "Painting Area",
-    PAINT_LABEL[type] + " · " + fmt(coats, 0) + " coat" + (coats === 1 ? "" : "s"),
-    [
-      { label: "Total Area to Paint", fil: "kabuuang sukat", value: fmt(area, 1) + " sqm" },
-      { label: "Required Paint", fil: "kailangang pintura", value: fmt(liters, 1) + " L", hero: true },
-      { label: "Equivalent Gallons", fil: "galon", value: fmt(gallons, 1) + " gal" },
-      { label: "Primer Requirement", fil: "primer", value: fmt(primerLiters, 1) + " L / " + fmt(primerGallons, 1) + " gal" }
-    ]
-  );
-
-  toast(message, "fa-paint-roller");
+function safeCompute(fn, silent) {
+  try {
+    var result = fn();
+    var error = $('#calc-error');
+    error.hidden = true;
+    error.textContent = '';
+    return result;
+  } catch (e) {
+    showError(e.message || 'Unable to calculate. Check your inputs.', silent);
+    return null;
+  }
 }
-
-/* -------- 3. Tile -------- */
-function runTile() {
-  var form = $("#form-tile");
-  if (validateForm(form)) { toast("Please fill in all measurements.", "fa-triangle-exclamation"); return; }
-
-  var L = num($("#tile-length").value);
-  var W = num($("#tile-width").value);
-  var size = $("#tile-size").value;
-  var allow = num($("#tile-allowance").value);
-
-  if (L <= 0 || W <= 0) { toast("Measurements must be greater than zero.", "fa-triangle-exclamation"); return; }
-
-  var t = TILE_DATA[size];
-  var tileArea = t.w * t.h;
-  var area = L * W;
-  var baseTiles = area / tileArea;
-  var withWaste = baseTiles * (1 + allow);
-  var tiles = ceilInt(withWaste);
-  var boxes = ceilInt(tiles / t.pcsPerBox);
-
-  /* adhesive: ~1 kg per sqm + 10% wasteage, in 25kg bags */
-  var adhesiveKg = area * 1.1;
-  var adhesiveBags = ceilInt(adhesiveKg / 25);
-  /* grout: ~0.4 kg per sqm */
-  var groutKg = area * 0.4;
-
-  storeQuantities("tile", { boxes: boxes, tiles: tiles });
-
-  showResult(
-    "Tile Requirement",
-    size.replace("x", " × ") + " cm tiles · " + fmt(allow * 100, 0) + "% allowance",
-    [
-      { label: "Total Floor Area", fil: "kabuuang sukat", value: fmt(area, 1) + " sqm" },
-      { label: "Tiles Needed", fil: "kailangang tiles", value: fmt(tiles, 0) + " pcs", hero: true },
-      { label: "Boxes Needed", fil: "kahon", value: fmt(boxes, 0) + " boxes" },
-      { label: "Tile Adhesive", fil: "pang- dikit", value: adhesiveBags + " bags (25kg)" },
-      { label: "Grout", fil: "pang-kulay ng bitak", value: fmt(groutKg, 1) + " kg" }
-    ]
-  );
+function resultRows(resultTitle, sub, rows, note, totals) {
+  showResult(resultTitle, sub, rows, totals || []);
+  currentResult.note = note;
+  $('#result-note').textContent = note || '';
+  currentResult.inputValues = captureInputs($('.calc-form[data-module="' + currentModule + '"]'));
 }
-
-/* -------- 4. Nail / Pako -------- */
-function runNail() {
-  var form = $("#form-nail");
-  if (validateForm(form)) { toast("Please fill in all measurements.", "fa-triangle-exclamation"); return; }
-
-  var type = $("#nail-material").value;
-  var L = num($("#nail-length").value);
-  var boards = num($("#nail-boards").value);
-
-  if (L < 0 || boards < 0) { toast("Values cannot be negative.", "fa-triangle-exclamation"); return; }
-
-  var d = NAIL_DATA[type];
-  /* nails: per meter of run + per board + spacing adjustment (denser spacing = more nails) */
-  var runNails = Math.ceil(L * d.perMeter);
-  var boardNails = Math.ceil(boards * d.perBoard);
-  var count = runNails + boardNails;
-  var kg = count * KG_PER_NAIL;
-
-  storeQuantities("nail", { kg: kg, count: count });
-
-  showResult(
-    "Nail Requirement",
-    d.label + " · " + d.size + " recommended",
-    [
-      { label: "Recommended Nail", fil: "rekomendadong pako", value: d.size + " common nail", hero: true },
-      { label: "Estimated Nail Count", fil: "bilang ng pako", value: fmt(count, 0) + " pcs" },
-      { label: "Estimated Weight", fil: "timbang", value: fmt(kg, 1) + " kg" },
-      { label: "From Structure Run", fil: "run = " + fmt(L, 1) + " m", value: fmt(runNails, 0) + " pcs" },
-      { label: "From Boards", fil: boards + " boards", value: fmt(boardNails, 0) + " pcs" }
-    ]
-  );
+function captureInputs(form) {
+  if (!form) return {};
+  var values = {};
+  $all('input, select', form).forEach(function (control) {
+    if (control.id && control.type !== 'file') values[control.id] = control.type === 'checkbox' ? control.checked : control.value;
+  });
+  var chip = $('.chip.is-active', form);
+  if (chip) values._chip = chip.dataset.value;
+  return values;
 }
-
-/* -------- 5. Concrete: Cement / Sand / Gravel -------- */
-function runConcrete() {
-  var form = $("#form-concrete");
-  if (validateForm(form)) { toast("Please fill in all measurements.", "fa-triangle-exclamation"); return; }
-
-  var project = $("#conc-project").value;
-  var L = num($("#conc-length").value);
-  var W = num($("#conc-width").value);
-  var H = num($("#conc-height").value);
-
-  if (L <= 0 || W <= 0 || H <= 0) { toast("Measurements must be greater than zero.", "fa-triangle-exclamation"); return; }
-
-  var vol = L * W * H; /* m3 */
-  var m = CONCRETE_MIX[project];
-
-  /* raw volumes for the mix (1:2:4 proportions give 7 parts; a m3 of concrete ≈ 1.54 m3 of dry materials) */
-  var dryFactor = 1.54;
-  var cementVol = vol * (m.cement / (m.cement + m.sand + m.gravel)) * dryFactor;
-  var sandVol   = vol * (m.sand / (m.cement + m.sand + m.gravel)) * dryFactor;
-  var gravelVol = vol * (m.gravel / (m.cement + m.sand + m.gravel)) * dryFactor;
-
-  var bags = ceilInt(cementVol / CEMENT_BAG_VOL);
-  var water = vol * WATER_PER_M3;
-
-  storeQuantities("concrete", { bags: bags, vol: vol });
-
-  var projectLabel = $("#conc-project").selectedOptions[0].text.split(" (")[0];
-
-  showResult(
-    "Concrete Volume",
-    projectLabel + " · 1 : " + (m.sand / m.cement).toFixed(0) + " : " + (m.gravel / m.cement).toFixed(0) + " mix",
-    [
-      { label: "Concrete Volume", fil: "kabuuang bolyum", value: fmt(vol, 2) + " m³", hero: true },
-      { label: "Cement", fil: "semento (40kg bags)", value: fmt(bags, 0) + " bags" },
-      { label: "Sand", fil: "buhangin", value: fmt(sandVol, 2) + " m³" },
-      { label: "Gravel", fil: "graba", value: fmt(gravelVol, 2) + " m³" },
-      { label: "Water", fil: "tubig", value: fmt(water, 0) + " L" }
-    ]
-  );
+function restoreInputs(entry) {
+  var module = entry.module, values = entry.inputValues;
+  var form = $('.calc-form[data-module="' + module + '"]');
+  if (!form || !values || typeof values !== 'object') return;
+  $all('input, select', form).forEach(function (input) {
+    if (Object.prototype.hasOwnProperty.call(values, input.id) && input.type !== 'file') {
+      if (input.type === 'checkbox') input.checked = values[input.id] === true;
+      else input.value = String(values[input.id]);
+    }
+  });
+  if (values._chip) $all('.chip', form).forEach(function (chip) {
+    var active = chip.dataset.value === values._chip;
+    chip.classList.toggle('is-active', active);
+    chip.setAttribute('aria-checked', String(active));
+  });
+  showView('calculators');
+  selectModule(module);
+  toast('Restored input fields. Recalculate before saving.', 'fa-rotate-left');
 }
-
-/* -------- 6. Cost Estimator -------- */
+function updateSteelFields() {
+  var grid = ['slab', 'footing', 'staircase'].indexOf(field('steel-project')) >= 0;
+  $('#steel-grid-fields').hidden = !grid;
+  $('#steel-tie-fields').hidden = grid;
+}
+function updateTileBoxDefault() {
+  var data = BuildCalcEngine.constants.tiles[field('tile-size')];
+  if (data) $('#tile-pcs-box').value = data.pcsPerBox;
+}
 function storeQuantities(module, qty) {
   var q = loadJSON(QUANT_KEY, {});
+  if (!q || typeof q !== 'object' || Array.isArray(q)) q = {};
   q[module] = qty;
   saveJSON(QUANT_KEY, q);
 }
-
-function runCost() {
-  var form = $("#form-cost");
-  if (validateForm(form)) { toast("Please enter your prices.", "fa-triangle-exclamation"); return; }
-
-  var pCement = num($("#price-cement").value);
-  var pSteel  = num($("#price-steel").value);
-  var pPaint  = num($("#price-paint").value);
-  var pTile   = num($("#price-tile").value);
-  var pNails  = num($("#price-nails").value);
-  var pLabor  = num($("#price-labor").value);
-  var days    = num($("#cost-days").value);
-
-  var q = loadJSON(QUANT_KEY, {});
-  var steel = q.steel || { pieces: 0, weight: 0 };
-  var paint = q.paint || { gallons: 0, liters: 0 };
-  var tile  = q.tile  || { boxes: 0, tiles: 0 };
-  var nail  = q.nail  || { kg: 0, count: 0 };
-  var conc  = q.concrete || { bags: 0, vol: 0 };
-
-  var cSteel = steel.pieces * pSteel;
-  var cPaint = paint.gallons * pPaint;
-  var cTile  = tile.boxes * pTile;
-  var cNail  = nail.kg * pNails;
-  var cCement = conc.bags * pCement;
-  var cLabor = pLabor * days;
-
-  var subtotal = cSteel + cPaint + cTile + cNail + cCement;
-  var grand = subtotal + cLabor;
-
-  /* persist prices */
-  saveJSON(PRICE_KEY, { cement: pCement, steel: pSteel, paint: pPaint, tile: pTile, nails: pNails, labor: pLabor, days: days });
-
-  var rows = [];
-  if (steel.pieces) rows.push({ label: "Steel (Anilyo)", fil: steel.pieces + " pcs × " + money(pSteel), value: money(cSteel) });
-  if (conc.bags)    rows.push({ label: "Cement (Semento)", fil: conc.bags + " bags × " + money(pCement), value: money(cCement) });
-  if (paint.gallons > 0) rows.push({ label: "Paint (Pintura)", fil: fmt(paint.gallons, 1) + " gal × " + money(pPaint), value: money(cPaint) });
-  if (tile.boxes)   rows.push({ label: "Tiles", fil: tile.boxes + " boxes × " + money(pTile), value: money(cTile) });
-  if (nail.kg > 0)  rows.push({ label: "Nails (Pako)", fil: fmt(nail.kg, 1) + " kg × " + money(pNails), value: money(cNail) });
-  if (cLabor > 0)   rows.push({ label: "Labor", fil: fmt(days, 0) + " days × " + money(pLabor), value: money(cLabor) });
-
-  if (!rows.length) {
-    toast("Run a calculator first so there are quantities to price.", "fa-circle-info");
-    return;
-  }
-
-  var totals = [{ label: "Grand Total", fil: "kabuuang gastos", value: money(grand) }];
-
-  showResult("Material Cost Estimate", "Based on your saved quantities and current prices", rows, totals);
-
-  currentResult.costRows = rows;
-  currentResult.grandTotal = grand;
+function runSteel(silent) {
+  return safeCompute(function () {
+    var r = BuildCalcEngine.steel({
+      project: field('steel-project'), length: field('steel-length'), width: field('steel-width'),
+      height: field('steel-height'), spacingCm: field('steel-spacing'), coverMm: field('steel-cover'),
+      stockLength: field('steel-stock'), size: $('.chip.is-active', $('#form-steel')).dataset.value,
+      tieSize: field('steel-tie-size'), layers: field('steel-layers'), longitudinalBars: field('steel-longitudinal')
+    });
+    var rows = [
+      { label: 'Main Bar Length', fil: 'Straight length', value: fmt(r.mainLength, 2) + ' m' },
+      { label: 'Main Steel to Buy', fil: r.mainDiameter + ' mm × ' + r.stockLength + ' m', value: fmt(r.mainPieces, 0) + ' bars', hero: true }
+    ];
+    if (r.tiePieces) rows.push({ label: 'Stirrups / Ties', fil: r.tieDiameter + ' mm · ' + fmt(r.stirrupCutLength, 2) + ' m per cut', value: r.stirrups + ' pcs' },
+      { label: 'Tie Steel to Buy', fil: r.tieDiameter + ' mm × ' + r.stockLength + ' m', value: r.tiePieces + ' bars' });
+    else rows.push({ label: 'Grid Bars', fil: 'Lengthwise / crosswise', value: r.countLengthwise + ' / ' + r.countWidthwise });
+    rows.push({ label: 'Estimated Weight', fil: 'Main bars + ties', value: fmt(r.mainWeight + r.tieWeight, 2) + ' kg' });
+    storeQuantities('steel', { mainPieces: r.mainPieces, tiePieces: r.tiePieces, mainDiameter: r.mainDiameter,
+      tieDiameter: r.tieDiameter, stockLength: r.stockLength });
+    resultRows('Steel Requirement', field('steel-project') + ' · ' + r.stockLength + ' m stock', rows, r.note);
+    return r;
+  }, silent);
+}
+function runPaint(silent) {
+  return safeCompute(function () {
+    var r = BuildCalcEngine.paint({ type: field('paint-type'), coverage: field('paint-coverage'),
+      primerCoverage: field('paint-primer-coverage'), length: field('paint-length'),
+      height: field('paint-height'), walls: field('paint-walls'), coats: field('paint-coats'),
+      openings: field('paint-openings'), wastePct: field('paint-waste'),
+      canLiters: field('paint-can-size'), includePrimer: checked('paint-primer') });
+    var rows = [
+      { label: 'Net Paintable Area', fil: 'After openings', value: fmt(r.area, 2) + ' m²' },
+      { label: 'Finish Paint', fil: r.coats + ' coat(s), including allowance', value: fmt(r.liters, 2) + ' L' },
+      { label: 'Finish Cans to Buy', fil: fmt(r.canLiters, 3) + ' L per can', value: r.cans + ' cans', hero: true }
+    ];
+    if (r.primerCans) rows.push({ label: 'Primer', fil: 'One coat', value: fmt(r.primerLiters, 2) + ' L / ' + r.primerCans + ' cans' });
+    storeQuantities('paint', { cans: r.cans, primerCans: r.primerCans, canLiters: r.canLiters, type: field('paint-type') });
+    resultRows('Paint Requirement', field('paint-type') + ' · ' + field('paint-coats') + ' coat(s)', rows, r.note);
+    return r;
+  }, silent);
+}
+function runTile(silent) {
+  return safeCompute(function () {
+    var r = BuildCalcEngine.tile({ length: field('tile-length'), width: field('tile-width'),
+      size: field('tile-size'), allowance: field('tile-allowance'), pcsPerBox: field('tile-pcs-box'),
+      adhesiveCoverage: field('tile-adhesive-coverage'), adhesiveWastePct: field('tile-adhesive-waste'),
+      groutRate: field('tile-grout-rate') });
+    storeQuantities('tile', { boxes: r.boxes, tiles: r.tiles, adhesiveBags: r.adhesiveBags, groutBuyKg: r.groutBuyKg });
+    resultRows('Tile Requirement', field('tile-size') + ' cm · ' + fmt(Number(field('tile-allowance')) * 100, 0) + '% cuts allowance', [
+      { label: 'Floor Area', fil: 'Gross', value: fmt(r.area, 2) + ' m²' },
+      { label: 'Tile Pieces', fil: 'Including cut allowance', value: r.tiles + ' pcs' },
+      { label: 'Boxes to Buy', fil: r.pcsPerBox + ' pcs/box', value: r.boxes + ' boxes', hero: true },
+      { label: 'Tile Adhesive', fil: '25 kg bags', value: r.adhesiveBags + ' bags' },
+      { label: 'Grout', fil: 'Approximate · rounded to 0.5 kg for costing', value: fmt(r.groutKg, 2) + ' kg / ' + fmt(r.groutBuyKg, 1) + ' kg to buy' }
+    ], r.note);
+    return r;
+  }, silent);
+}
+function runNail(silent) {
+  return safeCompute(function () {
+    var r = BuildCalcEngine.nail({ type: field('nail-material'), length: field('nail-length'),
+      boards: field('nail-boards'), spacingCm: field('nail-spacing'),
+      nailsPerJoint: field('nail-per-joint'), wastePct: field('nail-waste') });
+    storeQuantities('nail', { count: r.count, kg: r.kg, buyKg: r.buyKg });
+    resultRows('Nail Requirement', field('nail-material') + ' · ' + r.size, [
+      { label: 'Fastening Points', fil: 'From run and spacing', value: r.joints + ' joints' },
+      { label: 'Nails Required', fil: 'Including boards and waste', value: r.count + ' pcs', hero: true },
+      { label: 'Estimated Weight', fil: 'Individual nail weight is approximate', value: fmt(r.kg, 3) + ' kg' },
+      { label: 'Nails to Buy', fil: 'Rounded to 0.5 kg', value: fmt(r.buyKg, 1) + ' kg' }
+    ], r.note);
+    return r;
+  }, silent);
+}
+function runConcrete(silent) {
+  return safeCompute(function () {
+    var r = BuildCalcEngine.concrete({ project: field('conc-project'), length: field('conc-length'),
+      width: field('conc-width'), height: field('conc-height'),
+      count: field('conc-count'), mixClass: field('conc-mix'), wastePct: field('conc-waste') });
+    storeQuantities('concrete', { bags: r.bags, sand: r.sand, gravel: r.gravel, volume: r.volume });
+    resultRows('Concrete Material Take-off', field('conc-project') + ' · Class ' + r.className + ' · ' + r.ratio, [
+      { label: 'Net Concrete Volume', fil: r.count + ' element(s)', value: fmt(r.volume, 3) + ' m³', hero: true },
+      { label: 'With Material Allowance', fil: 'Basis for purchase estimate', value: fmt(r.materialVolume, 3) + ' m³' },
+      { label: 'Cement', fil: '40 kg bags', value: r.bags + ' bags' },
+      { label: 'Sand', fil: 'Loose material estimate', value: fmt(r.sand, 3) + ' m³' },
+      { label: 'Gravel', fil: 'Loose material estimate', value: fmt(r.gravel, 3) + ' m³' }
+    ], r.note);
+    return r;
+  }, silent);
+}
+function runCost(silent) {
+  return safeCompute(function () {
+    var prices = {
+      cement: priceField('cement'), steel: priceField('steel'), ties: priceField('ties'),
+      paint: priceField('paint'), primer: priceField('primer'), tile: priceField('tile'),
+      adhesive: priceField('adhesive'), grout: priceField('grout'), nails: priceField('nails'),
+      sand: priceField('sand'), gravel: priceField('gravel'), labor: priceField('labor'),
+      days: field('cost-days'), workers: field('cost-workers'),
+      overheadPct: field('cost-overhead'), contingencyPct: field('cost-contingency')
+    };
+    var q = loadJSON(QUANT_KEY, {});
+    if (q && ((q.steel && q.steel.pieces != null && q.steel.mainPieces == null) ||
+      (q.paint && q.paint.gallons != null && q.paint.cans == null) ||
+      (q.tile && q.tile.boxes != null && q.tile.adhesiveBags == null) ||
+      (q.nail && q.nail.kg != null && q.nail.buyKg == null) ||
+      (q.concrete && q.concrete.vol != null && q.concrete.sand == null))) {
+      throw new Error('Old-format quantities detected. Recalculate the old materials or use Clear Material Quantities before costing.');
+    }
+    var r = BuildCalcEngine.cost(q && typeof q === 'object' ? q : {}, prices);
+    if (!r.lines.length && !r.labor) throw new Error('Calculate at least one material first or enter labor.');
+    saveJSON(PRICE_KEY, prices);
+    var rows = r.lines.map(function (line) {
+      return { label: line.label, fil: fmt(line.qty, 6) + ' ' + line.unit + ' × ' + money(line.price), value: money(line.amount) };
+    });
+    if (r.labor) rows.push({ label: 'Labor', fil: r.workers + ' worker(s) × ' + fmt(r.days, 1) + ' day(s) × ' + money(Number(prices.labor)), value: money(r.labor) });
+    var totals = [
+      { label: 'Materials Subtotal', fil: 'All priced materials', value: money(r.materials) },
+      { label: 'Labor Subtotal', fil: 'Workers × days × rate', value: money(r.labor) },
+      { label: 'Overhead', fil: field('cost-overhead') + '% of direct cost', value: money(r.overhead) },
+      { label: 'Contingency', fil: field('cost-contingency') + '% of direct cost plus overhead', value: money(r.contingency) },
+      { label: 'Grand Total', fil: 'Estimated project amount', value: money(r.total) }
+    ];
+    var note = 'Latest quantity per module only; prices in PHP. ' +
+      (r.warnings.length ? 'Missing price(s): ' + r.warnings.join(', ') + '. ' : '') +
+      'Supplier rates, hauling, tax treatment and project scope must be verified.';
+    resultRows('Material & Labor Estimate', field('cost-project-name').trim() || 'Combined material estimate', rows, note, totals);
+    currentResult.grandTotal = r.total;
+    return r;
+  }, silent);
 }
 
 /* =========================================================
@@ -530,12 +433,12 @@ function convPair(mInput, ftInput, factor) {
   /* m -> ft */
   mInput.addEventListener("input", function () {
     var v = num(mInput.value);
-    ftInput.value = v ? (v * factor).toFixed(3) : "";
+    ftInput.value = Number.isFinite(v) && mInput.value !== '' ? (v * factor).toFixed(3) : "";
   });
   /* ft -> m */
   ftInput.addEventListener("input", function () {
     var v = num(ftInput.value);
-    mInput.value = v ? (v / factor).toFixed(3) : "";
+    mInput.value = Number.isFinite(v) && ftInput.value !== '' ? (v / factor).toFixed(3) : "";
   });
 }
 
@@ -556,27 +459,31 @@ function initConverter() {
 /* =========================================================
    Saved estimates
    ========================================================= */
-function getSaved() { return loadJSON(STORE_KEY, []); }
+function getSaved() { var v = loadJSON(STORE_KEY, []); return Array.isArray(v) ? v : []; }
+function escapeHTML(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+  return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+}); }
 
 function saveCurrent() {
   if (!currentResult) return;
   var list = getSaved();
+  if (!Array.isArray(list)) list = [];
   var entry = {
-    id: "est-" + Date.now(),
+    id: "est-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9),
     module: currentModule,
     title: currentResult.title,
     sub: currentResult.sub,
     date: new Date().toISOString(),
     rows: currentResult.rows.map(function (r) { return { label: r.label, fil: r.fil, value: r.value }; }),
-    totals: (currentResult.totals || []).map(function (r) { return { label: r.label, fil: r.fil, value: r.value }; })
+    totals: (currentResult.totals || []).map(function (r) { return { label: r.label, fil: r.fil, value: r.value }; }),
+    note: currentResult.note || '', inputValues: currentResult.inputValues || {}
   };
   if (currentResult.costRows) {
     entry.costRows = currentResult.costRows;
     entry.grandTotal = currentResult.grandTotal;
   }
   list.unshift(entry);
-  saveJSON(STORE_KEY, list);
-  toast("Estimate saved.", "fa-floppy-disk");
+  if (saveJSON(STORE_KEY, list)) toast("Estimate saved.", "fa-floppy-disk");
 }
 
 function renderSaved() {
@@ -594,36 +501,43 @@ function renderSaved() {
 
   list.forEach(function (e) {
     var mod = MODULES.filter(function (m) { return m.id === e.module; })[0] || {};
+    if (!e || typeof e !== 'object' || !Array.isArray(e.rows)) return;
     var d = new Date(e.date);
+    if (Number.isNaN(d.getTime())) d = new Date();
     var dateStr = d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) +
                   " · " + d.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" });
 
     var card = document.createElement("div");
     card.className = "saved-card";
 
-    var summary = e.rows.map(function (r) { return "<b>" + r.label + ":</b> " + r.value; }).join("<br>");
+    var summary = e.rows.filter(function(r) { return r && typeof r === 'object'; }).map(function (r) { return "<b>" + escapeHTML(r.label) + ":</b> " + escapeHTML(r.value); }).join("<br>");
     if (e.totals && e.totals.length) {
-      summary += e.totals.map(function (r) { return "<br><b>" + r.label + ":</b> " + r.value; }).join("");
+      summary += e.totals.filter(function(r) { return r && typeof r === 'object'; }).map(function (r) { return "<br><b>" + escapeHTML(r.label) + ":</b> " + escapeHTML(r.value); }).join("");
     }
 
     card.innerHTML =
       '<div class="saved-card-top">' +
-        "<div><h4><i class=\"fa-solid " + (mod.icon || "fa-calculator") + "\"></i> " + e.title + "</h4>" +
-        '<div class="sc-date">' + dateStr + (e.sub ? " · " + e.sub : "") + "</div></div>" +
+        "<div><h4><i class=\"fa-solid " + (mod.icon || "fa-calculator") + "\"></i> " + escapeHTML(e.title) + "</h4>" +
+        '<div class="sc-date">' + escapeHTML(dateStr) + (e.sub ? " · " + escapeHTML(e.sub) : "") + "</div></div>" +
       "</div>" +
       '<div class="sc-summary">' + summary + "</div>" +
       '<div class="sc-actions">' +
         '<button class="btn btn-outline act-reprint"><i class="fa-solid fa-print"></i> Reprint</button>' +
         '<button class="btn btn-outline act-pdf"><i class="fa-solid fa-file-pdf"></i> PDF</button>' +
+        (e.inputValues ? '<button class="btn btn-outline act-restore"><i class="fa-solid fa-rotate-left"></i> Reopen</button>' : '') +
         '<button class="btn btn-ghost act-del"><i class="fa-solid fa-trash-can"></i> Delete</button>' +
       "</div>";
 
+    var restore = $(".act-restore", card);
+    if (restore) restore.addEventListener("click", function () { restoreInputs(e); });
     $(".act-reprint", card).addEventListener("click", function () { printEntry(e); });
     $(".act-pdf", card).addEventListener("click", function () { exportPDF(e); });
     $(".act-del", card).addEventListener("click", function () {
-      saveJSON(STORE_KEY, getSaved().filter(function (x) { return x.id !== e.id; }));
-      renderSaved();
-      toast("Estimate deleted.", "fa-trash-can");
+      if (!window.confirm('Delete this saved estimate?')) return;
+      if (saveJSON(STORE_KEY, getSaved().filter(function (x) { return x.id !== e.id; }))) {
+        renderSaved();
+        toast("Estimate deleted.", "fa-trash-can");
+      }
     });
 
     wrap.appendChild(card);
@@ -635,21 +549,22 @@ function renderSaved() {
    ========================================================= */
 function reportHTML(entry, projectName) {
   var rows = (entry.rows || []).map(function (r) {
-    return "<tr><td>" + r.label + (r.fil ? '<br><small style="color:#777">' + r.fil + "</small>" : "") +
-           '</td><td class="num">' + r.value + "</td></tr>";
+    return "<tr><td>" + escapeHTML(r.label) + (r.fil ? '<br><small style="color:#777">' + escapeHTML(r.fil) + "</small>" : "") +
+           '</td><td class="num">' + escapeHTML(r.value) + "</td></tr>";
   }).join("");
   var totals = (entry.totals || []).map(function (r) {
-    return "<tr><td><b>" + r.label + "</b>" + (r.fil ? '<br><small style="color:#777">' + r.fil + "</small>" : "") +
-           '</td><td class="num"><b>' + r.value + "</b></td></tr>";
+    return "<tr><td><b>" + escapeHTML(r.label) + "</b>" + (r.fil ? '<br><small style="color:#777">' + escapeHTML(r.fil) + "</small>" : "") +
+           '</td><td class="num"><b>' + escapeHTML(r.value) + "</b></td></tr>";
   }).join("");
 
   return '<h1>BUILDING MATERIAL ESTIMATE</h1>' +
     '<div class="pr-sub">BuildCalc · Construction Material Calculator<br>' +
-    "Project: " + (projectName || "—") + "<br>" +
+    "Project: " + escapeHTML(projectName || "—") + "<br>" +
     "Date: " + new Date(entry.date || Date.now()).toLocaleString("en-PH") + "</div>" +
     '<table><thead><tr><th>Item</th><th class="num">Quantity / Amount</th></tr></thead>' +
     "<tbody>" + rows + totals + "</tbody></table>" +
-    (entry.grandTotal ? '<div class="pr-total">Total Estimated Cost: ' + entry.grandTotal + "</div>" : "") +
+    (Number.isFinite(entry.grandTotal) ? '<div class="pr-total">Total Estimated Cost: ' + money(entry.grandTotal) + "</div>" : "") +
+    (entry.note ? '<p class="pr-foot">' + escapeHTML(entry.note) + '</p>' : '') +
     '<div class="pr-foot">Estimates only. Confirm final quantities with your supplier and engineer before ordering.</div>';
 }
 
@@ -657,9 +572,9 @@ function printEntry(entry) {
   var el = $("#print-report");
   el.innerHTML = reportHTML(entry, entry.sub || entry.title);
   el.setAttribute("aria-hidden", "false");
+  function clean() { el.setAttribute("aria-hidden", "true"); el.textContent = ""; }
+  window.addEventListener('afterprint', clean, { once: true });
   window.print();
-  el.setAttribute("aria-hidden", "true");
-  el.innerHTML = "";
 }
 
 function exportPDF(entry) {
@@ -688,23 +603,24 @@ function exportPDF(entry) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(90, 90, 90);
-  doc.text("Project: " + (entry.sub || entry.title), left, y); y += 12;
+  doc.text(pdfText("Project: " + (entry.sub || entry.title)), left, y, { maxWidth: pageW - left - right }); y += 12;
   doc.text("Date: " + new Date(entry.date || Date.now()).toLocaleString("en-PH"), left, y);
   y += 24;
   doc.setTextColor(0, 0, 0);
 
+  function pdfText(text) { return String(text == null ? '' : text).replace(/₱/g, 'PHP ').replace(/×/g, 'x').replace(/³/g, '^3').replace(/²/g, '^2').replace(/·/g, '-').replace(/[–—]/g, '-'); }
   function row(label, fil, value, bold) {
     if (y > 740) { doc.addPage(); y = 60; }
     doc.setFont("helvetica", bold ? "bold" : "normal");
     doc.setFontSize(bold ? 12 : 10.5);
-    doc.text(label, left, y);
-    doc.text(String(value), pageW - right, y, { align: "right" });
+    doc.text(pdfText(label), left, y, { maxWidth: 310 });
+    doc.text(pdfText(value), pageW - right, y, { align: "right", maxWidth: 160 });
     if (fil) {
       y += 11;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(120, 120, 120);
-      doc.text(String(fil), left, y);
+      doc.text(pdfText(fil), left, y, { maxWidth: pageW - left - right });
       doc.setTextColor(0, 0, 0);
     }
     y += bold ? 18 : 14;
@@ -721,6 +637,11 @@ function exportPDF(entry) {
   doc.setFontSize(8);
   doc.setTextColor(130, 130, 130);
   doc.text("Estimates only. Confirm final quantities with your supplier and engineer.", left, y);
+  if (entry.note) {
+    y += 14;
+    if (y > 750) { doc.addPage(); y = 60; }
+    doc.text(doc.splitTextToSize(pdfText(entry.note), pageW - left - right), left, y);
+  }
 
   var name = "BuildCalc-" + (entry.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "estimate") + ".pdf";
   doc.save(name);
@@ -730,42 +651,96 @@ function exportPDF(entry) {
 /* =========================================================
    Form wiring: instant recalculation on any input change
    ========================================================= */
-function runCalc(form) {
+function runCalc(form, silent) {
   var m = form.dataset.module;
-  if (m === "steel") runSteel();
-  else if (m === "paint") runPaint();
-  else if (m === "tile") runTile();
-  else if (m === "nail") runNail();
-  else if (m === "concrete") runConcrete();
-  else if (m === "cost") runCost();
+  if (m === 'steel') return runSteel(silent);
+  if (m === 'paint') return runPaint(silent);
+  if (m === 'tile') return runTile(silent);
+  if (m === 'nail') return runNail(silent);
+  if (m === 'concrete') return runConcrete(silent);
+  if (m === 'cost') return runCost(silent);
 }
-
 function wireForms() {
-  /* live recalc on input / change */
-  $all(".calc-form").forEach(function (form) {
-    $all("input, select", form).forEach(function (inp) {
-      var evt = inp.tagName === "SELECT" ? "change" : "input";
-      inp.addEventListener(evt, function () {
-        if (form.dataset.module === "converter") return; /* converter wires its own */
-        runCalc(form);
+  $all('.calc-form').forEach(function(form) {
+    $all('input, select', form).forEach(function(input) {
+      var evt = input.tagName === 'SELECT' ? 'change' : 'input';
+      input.addEventListener(evt, function() {
+        if (form.dataset.module === 'converter') return;
+        if (input.id === 'steel-project') updateSteelFields();
+        if (input.id === 'tile-size') updateTileBoxDefault();
+        if (input.id === 'paint-type') {
+          $('#paint-coverage').value = BuildCalcEngine.constants.paint[field('paint-type')];
+          $('#paint-primer').disabled = field('paint-type') === 'primer';
+        }
+        runCalc(form, true);
       });
     });
-    $all(".chip", form).forEach(function (chip) {
-      chip.addEventListener("click", function () {
-        $all(".chip", form).forEach(function (c) { c.classList.remove("is-active"); c.setAttribute("aria-checked", "false"); });
-        chip.classList.add("is-active");
-        chip.setAttribute("aria-checked", "true");
-        runCalc(form);
+    $all('.chip', form).forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        $all('.chip', form).forEach(function(c) { c.classList.remove('is-active'); c.setAttribute('aria-checked', 'false'); });
+        chip.classList.add('is-active'); chip.setAttribute('aria-checked', 'true');
+        runCalc(form, true);
       });
     });
-    form.addEventListener("submit", function (e) { e.preventDefault(); });
-    form.addEventListener("reset", function () {
-      setTimeout(function () {
-        $all(".is-invalid", form).forEach(function (i) { i.classList.remove("is-invalid"); });
-        hideResult();
-      }, 0);
+    var button = $('.calc-btn', form);
+    if (button) button.addEventListener('click', function() {
+      if (runCalc(form, false)) $('#result-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
+    form.addEventListener('submit', function(e) { e.preventDefault(); runCalc(form, false); });
+    form.addEventListener('reset', function() { setTimeout(function() {
+      $all('.is-invalid', form).forEach(function(i) { i.classList.remove('is-invalid'); i.removeAttribute('aria-invalid'); });
+      if (form.dataset.module === 'steel') {
+        $all('.chip', form).forEach(function(c) { var a = c.dataset.value === '12'; c.classList.toggle('is-active', a); c.setAttribute('aria-checked', String(a)); });
+        updateSteelFields();
+      }
+      if (form.dataset.module === 'paint') { $('#paint-primer').disabled = false; }
+      if (form.dataset.module === 'converter') updateConverter();
+      else runCalc(form, true);
+    }, 0); });
   });
+}
+function exportBackup() {
+  var backup = { app: 'BuildCalc', version: 2, exportedAt: new Date().toISOString(),
+    saved: getSaved(), quantities: loadJSON(QUANT_KEY, {}), prices: loadJSON(PRICE_KEY, {}) };
+  var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = 'BuildCalc-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+  toast('Backup exported.', 'fa-download');
+}
+function importBackup(file) {
+  if (!file) return;
+  if (file.size > 3000000) { toast('Backup is too large (max 3 MB).', 'fa-triangle-exclamation'); return; }
+  var reader = new FileReader();
+  reader.onload = function() {
+    try {
+      var data = JSON.parse(reader.result);
+      if (!data || data.app !== 'BuildCalc' || !Array.isArray(data.saved) || data.saved.length > 1000 ||
+          !data.saved.every(function(e) { return e && typeof e === 'object' && Array.isArray(e.rows) && e.rows.length <= 200 &&
+            e.rows.every(function(r) { return r && typeof r === 'object' && typeof r.label === 'string' && typeof r.value === 'string'; }); }))
+        throw new Error('Not a compatible BuildCalc backup.');
+      if (!window.confirm('Restore backup? It will replace saved estimates, quantities and prices on this device.')) return;
+      if (!saveJSON(STORE_KEY, data.saved)) return;
+      if (!saveJSON(QUANT_KEY, data.quantities && typeof data.quantities === 'object' ? data.quantities : {})) return;
+      if (!saveJSON(PRICE_KEY, data.prices && typeof data.prices === 'object' ? data.prices : {})) return;
+      restorePrices(); renderSaved();
+      toast('Backup restored. Review inputs and prices.', 'fa-file-import');
+    } catch(e) { toast(e.message || 'Could not read backup.', 'fa-triangle-exclamation'); }
+  };
+  reader.readAsText(file);
+}
+function restorePrices() {
+  var p = loadJSON(PRICE_KEY, null);
+  if (!p || typeof p !== 'object') return;
+  ['cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor'].forEach(function(key) {
+    if (p[key] != null && Number.isFinite(Number(p[key])) && Number(p[key]) >= 0) $('#price-' + key).value = p[key];
+  });
+  ['days','workers'].forEach(function(key) {
+    if (p[key] != null) $('#cost-' + key).value = p[key];
+  });
+  if (p.overheadPct != null) $('#cost-overhead').value = p.overheadPct;
+  if (p.contingencyPct != null) $('#cost-contingency').value = p.contingencyPct;
 }
 
 /* =========================================================
@@ -790,7 +765,7 @@ function init() {
     if (currentResult) printEntry({
       title: currentResult.title, sub: currentResult.sub,
       rows: currentResult.rows, totals: currentResult.totals,
-      costRows: currentResult.costRows, grandTotal: currentResult.grandTotal,
+      costRows: currentResult.costRows, grandTotal: currentResult.grandTotal, note: currentResult.note,
       date: new Date().toISOString()
     });
   });
@@ -799,7 +774,7 @@ function init() {
     exportPDF({
       title: currentResult.title, sub: currentResult.sub,
       rows: currentResult.rows, totals: currentResult.totals,
-      costRows: currentResult.costRows, grandTotal: currentResult.grandTotal,
+      costRows: currentResult.costRows, grandTotal: currentResult.grandTotal, note: currentResult.note,
       date: new Date().toISOString()
     });
   });
@@ -814,17 +789,20 @@ function init() {
     }
   });
 
-  /* restore saved prices */
-  var prices = loadJSON(PRICE_KEY, null);
-  if (prices) {
-    $("#price-cement").value = prices.cement;
-    $("#price-steel").value = prices.steel;
-    $("#price-paint").value = prices.paint;
-    $("#price-tile").value = prices.tile;
-    $("#price-nails").value = prices.nails;
-    if (prices.labor !== undefined) $("#price-labor").value = prices.labor;
-    if (prices.days !== undefined) $("#cost-days").value = prices.days;
-  }
+  restorePrices();
+  updateSteelFields();
+  $('#btn-clear-quantities').addEventListener('click', function() {
+    if (window.confirm('Clear all calculated material quantities? Saved reports will remain.')) {
+      localStorage.removeItem(QUANT_KEY);
+      runCost(true);
+      toast('Material quantities cleared.', 'fa-trash-can');
+    }
+  });
+  $('#btn-export-backup').addEventListener('click', exportBackup);
+  $('#btn-import-backup').addEventListener('click', function() { $('#backup-file').click(); });
+  $('#backup-file').addEventListener('change', function() {
+    importBackup(this.files[0]); this.value = '';
+  });
 
   /* default module */
   selectModule("steel", true);
