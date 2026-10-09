@@ -210,10 +210,111 @@
       className: p.mixClass, ratio: mix.ratio, count: count, belowFloor: belowFloor, totalHeight: totalHeight,
       note: 'Fajardo-style estimating factors for nominal site mix, 40-kg bags. NOT mix-design, compressive-strength, or water recommendations. Structural plans take precedence.' };
   }
+
+  // Formwork is a MATERIAL QUANTITY estimate only; this DOES NOT design shoring,
+  // scaffolding, bracing capacity, load paths, or connections. All spacings entered
+  // here are take-off assumptions; use the engineer's temporary-works drawings.
+  var FORMWORK_NAILS = { '1': 0.9, '1.5': 1.6, '2': 2.8, '3': 6, '3-concrete': 8.5 }; // indicative g/nail, editable
+  var FORMWORK_LUMBER = ['2x2x8','2x2x10','2x2x12','2x3x8','2x3x10','2x3x12','2x4x8','2x4x10','2x4x12','3x3x10','3x3x12'];
+  function parseLumber(spec) {
+    if (FORMWORK_LUMBER.indexOf(spec) < 0) throw new Error('Choose a valid coco lumber dimension and stock length.');
+    var parts = spec.split('x');
+    return { spec:spec, size:parts[0]+'x'+parts[1], feet:Number(parts[2]), stockLength:Number(parts[2])*.3048 };
+  }
+  function splitWoodMembers(cuts, memberLength, count, stockLength) {
+    if (!count || !memberLength) return 0;
+    if (count > 30000) throw new Error('Too many lumber cuts. Divide your estimate into smaller sections.');
+    var segments = Math.ceil(memberLength / stockLength - 1e-9);
+    if (segments > 1000 || segments * count > 30000) throw new Error('Too many lumber cut segments. Divide the work into smaller sections.');
+    // The equal cuts are a procurement approximation, NOT an approved splice detail.
+    cuts.push({length:memberLength / segments, count:count * segments});
+    return count * (segments-1);
+  }
+  function formwork(p) {
+    var type = String(p.type);
+    var known = {column:1, beam:1, slab:1, footing:1, scaffolding:1, area:1};
+    pick(known, type, 'formwork type');
+    var count = whole(p.count == null ? 1 : p.count,'Number of identical elements');
+    var L = type === 'area' ? 0 : required(p.length,'Formwork length');
+    var W = type === 'area' ? 0 : required(p.width,'Formwork width');
+    var H = ['column','beam','footing'].indexOf(type) >= 0 ? required(p.height,'Formwork depth / height') : 0;
+    var sqm = type === 'area' ? required(p.areaSqm,'Area per element')*count :
+      (type === 'column' ? 2*(W+H)*L*count :
+       type === 'beam' ? (W+2*H)*L*count :
+       type === 'footing' ? 2*(L+W)*H*count : L*W*count);
+    if (sqm > 1000000) throw new Error('Area is too large for a single estimate.');
+    var plywoodThickness = String(p.plywoodThickness);
+    if (['1/2','3/4'].indexOf(plywoodThickness)<0) throw new Error('Choose phenolic 1/2 or 3/4 inch.');
+    var sheetCoverage = required(p.sheetCoverageSqm == null ? 2.44 : p.sheetCoverageSqm,'Effective area per plywood sheet');
+    if (sheetCoverage > 10) throw new Error('Plywood sheet coverage must be no more than 10 m².');
+    var plywoodWastePct = required(p.plywoodWastePct == null ? 0 : p.plywoodWastePct,'Plywood waste',true);
+    if (plywoodWastePct > 100) throw new Error('Plywood allowance must not exceed 100%.');
+    var plywoodArea = sqm*(1+plywoodWastePct/100);
+    var plywoodSheets = purchase(plywoodArea / sheetCoverage);
+    var frameSpec = parseLumber(String(p.frameLumber || '2x3x10'));
+    var braceSpec = parseLumber(String(p.braceLumber || '2x2x10'));
+    var framingSpacing = required(p.framingSpacingCm == null ? (type==='slab'?40:60) : p.framingSpacingCm,'Frame / joist spacing (cm)')/100;
+    var braceSpacing = required(p.braceSpacingM == null ? 2 : p.braceSpacingM,'Diagonal brace interval (m)');
+    var braceLength = required(p.braceLengthM == null ? 1.5 : p.braceLengthM,'Diagonal brace cut length (m)');
+    var bracePerStation = whole(p.bracesPerStation == null ? 1 : p.bracesPerStation,'Braces per interval');
+    if (framingSpacing < .1 || framingSpacing > 5 || braceSpacing > 20 || braceLength > 20 || bracePerStation > 12) {
+      throw new Error('Check frame spacing, brace interval, and brace length.');
+    }
+    var framingCuts = [], braceCuts = [], framingStations = 0, braces = 0, impliedWoodJoints = 0;
+    function frame(len,qty) { impliedWoodJoints += splitWoodMembers(framingCuts,len,qty*count,frameSpec.stockLength); }
+    if (type === 'slab' || type === 'scaffolding') {
+      // Joists run lengthwise, at the entered centers across the slab width.
+      framingStations = purchase(W / framingSpacing)+1;
+      frame(L,framingStations);
+      frame(L,2); // perimeter runners, longitudinal
+      frame(W,2); // perimeter runners, transverse
+    } else if (type === 'beam') {
+      framingStations = purchase(L / framingSpacing)+1;
+      frame(H,2*framingStations); // side vertical cleats
+      frame(W,framingStations);   // soffit cross supports
+      frame(L,3); // longitudinal bottom + side runners
+    } else if (type === 'column') {
+      framingStations = purchase(L / framingSpacing)+1;
+      frame(L,4);             // vertical corner pieces
+      frame(W,2*framingStations);
+      frame(H,2*framingStations);
+    } else if (type === 'footing') {
+      var perimeter = 2*(L+W);
+      framingStations = purchase(perimeter/framingSpacing);
+      frame(H,framingStations);
+      frame(L,4); frame(W,4); // top/bottom runners on four faces
+    }
+    if (type !== 'area') {
+      var braceRun = type === 'column' ? L : type === 'footing' ? 2*(L+W) : L;
+      braces = purchase(braceRun / braceSpacing)*bracePerStation*count;
+      impliedWoodJoints += splitWoodMembers(braceCuts,braceLength,braces,braceSpec.stockLength);
+    }
+    var framingBars = stockBarsForCuts(framingCuts,frameSpec.stockLength);
+    var braceBars = stockBarsForCuts(braceCuts,braceSpec.stockLength);
+    var cutGroups = [{spec:frameSpec.spec,stockLength:frameSpec.stockLength,cuts:framingCuts},
+      {spec:braceSpec.spec,stockLength:braceSpec.stockLength,cuts:braceCuts}];
+    var nailsType = String(p.nailSize || '2');
+    var nailDefault = pick(FORMWORK_NAILS,nailsType,'nail size');
+    var nailGram = required(p.nailGram == null ? nailDefault : p.nailGram,'Grams per nail');
+    var nailsPerSqm = required(p.nailsPerSqm == null ? 20 : p.nailsPerSqm,'Nails per square meter',true);
+    var nailWaste = required(p.nailWastePct == null ? 10 : p.nailWastePct,'Nail allowance',true);
+    if (nailWaste > 100 || nailsPerSqm > 1000) throw new Error('Nail rate or allowance is too high.');
+    var nailCount = purchase(sqm*nailsPerSqm*(1+nailWaste/100));
+    var nailKg = nailCount*nailGram/1000;
+    return {type:type, elementCount:count, areaSqm:sqm, plywoodAreaSqm:plywoodArea, plywoodWastePct:plywoodWastePct,
+      plywoodThickness:plywoodThickness, sheetCoverageSqm:sheetCoverage, plywoodSheets:plywoodSheets,
+      framingSpacingCm:framingSpacing*100, framingStations:framingStations, braceSpacingM:braceSpacing, braceLengthM:braceLength,
+      braceCount:braces, frameLumber:frameSpec.spec, braceLumber:braceSpec.spec,
+      framingCuts:framingCuts, braceCuts:braceCuts, cutGroups:cutGroups, framingBars:framingBars, braceBars:braceBars,
+      woodJoints:impliedWoodJoints,nailSize:nailsType,nailGram:nailGram,nailCount:nailCount,nailKg:nailKg,
+      nailBuyKg:Math.ceil(nailKg*2 - 1e-9)/2,
+      note: 'Area-based plywood take-off, 2.44 m²/sheet default editable. Joists, coco lumber, diagonal slants and nails are approximate inputs, NOT a temporary-works or scaffold safety design. Verify panel cuts, props, load ratings, spacing and bracing from approved plans.'};
+  }
+
   function cost(q, p) {
-    var priceKeys = ['wire','cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor'];
+    var priceKeys = ['wire','cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor','plywood','lumber','formnails'];
     var prices = {};
-    priceKeys.forEach(function (key) { prices[key] = required(key === 'wire' && p[key] == null ? 0 : p[key], key + ' price', true); });
+    priceKeys.forEach(function (key) { prices[key] = required(p[key] == null && ['wire','plywood','lumber','formnails'].indexOf(key) >= 0 ? 0 : p[key], key + ' price', true); });
     var days = required(p.days, 'Labor days', true), workers = whole(p.workers, 'Workers', true);
     var overheadRate = required(p.overheadPct, 'Overhead', true) / 100;
     var contingencyRate = required(p.contingencyPct, 'Contingency', true) / 100;
@@ -223,7 +324,7 @@
       if (!Number.isFinite(amount) || amount < 0 || amount > 1e9) throw new Error('Invalid stored quantity: ' + label + '. Recalculate this material.');
       if (amount > 0) lines.push({ label: label, qty: amount, price: price, unit: unit, amount: amount * price, source: qty });
     }
-    var s = q.steel || {}, pa = q.paint || {}, t = q.tile || {}, n = q.nail || {}, c = q.concrete || {};
+    var s = q.steel || {}, pa = q.paint || {}, t = q.tile || {}, n = q.nail || {}, c = q.concrete || {}, f = q.formwork || {};
     add('Main steel bars', Number(s.mainPieces || 0), prices.steel, 'pcs', 'steel');
     add('Tie / stirrup steel', Number(s.tiePieces || 0), prices.ties, 'pcs', 'steel');
     add('Tie wire (#16)', Number(s.wireBuyKg || 0), prices.wire, 'kg', 'steel');
@@ -236,6 +337,10 @@
     add('Tile adhesive (25 kg)', Number(t.adhesiveBags || 0), prices.adhesive, 'bags', 'tile');
     add('Tile grout', Number(t.groutBuyKg || 0), prices.grout, 'kg', 'tile');
     add('Nails', Number(n.buyKg || 0), prices.nails, 'kg', 'nail');
+    add('Phenolic plywood ' + (f.plywoodThickness || ''), Number(f.plywoodSheets || 0), prices.plywood, 'sheets', 'formwork');
+    add('Coco lumber — framing', Number(f.framingBars || 0), prices.lumber, 'pcs', 'formwork');
+    add('Coco lumber — braces', Number(f.braceBars || 0), prices.lumber, 'pcs', 'formwork');
+    add('Formwork nails ' + (f.nailSize || ''), Number(f.nailBuyKg || 0), prices.formnails, 'kg', 'formwork');
     var materials = lines.reduce(function (sum, line) { return sum + line.amount; }, 0);
     var labor = prices.labor * days * workers;
     var direct = materials + labor;
@@ -247,10 +352,10 @@
   }
   function projectSummary(items, p) {
     if (!Array.isArray(items) || items.length > 1000) throw new Error('Invalid project sheet (maximum 1,000 entries).');
-    var priceKeys = ['wire','cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor'];
+    var priceKeys = ['wire','cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor','plywood','lumber','formnails'];
     var prices = {};
     priceKeys.forEach(function(key) { prices[key] = required(p[key] == null ? 0 : p[key], key + ' price', true); });
-    var groups = {}, cutting = {};
+    var groups = {}, cutting = {}, woodCutting = {}, plywood = {}, formNails = {};
     function put(key, label, qty, unit, rateKey, section) {
       var value = required(qty, label, true);
       if (!value) return;
@@ -283,6 +388,21 @@
         put('tiles-' + (q.tileSize || 'unknown') + '-' + (q.pcsPerBox || 0), 'Tiles ' + (q.tileSize || 'size unspecified') + ' (' + (q.pcsPerBox || '?') + '/box)', q.boxes || 0, 'boxes', 'tile', section);
         put('adhesive-25', 'Tile adhesive (25 kg)', q.adhesiveBags || 0, 'bags', 'adhesive', section);
         put('grout', 'Tile grout', q.groutBuyKg || 0, 'kg', 'grout', section);
+      } else if (item.module === 'formwork') {
+        if (!Array.isArray(q.cutGroups) || !Number.isFinite(Number(q.plywoodAreaSqm))) throw new Error('Outdated formwork item. Reopen and recalculate it.');
+        var plyKey = 'phenolic-' + q.plywoodThickness + '-' + q.sheetCoverageSqm;
+        if (!plywood[plyKey]) plywood[plyKey] = { key:plyKey, label:'Phenolic plywood ' + q.plywoodThickness + ' in (' + q.sheetCoverageSqm + ' m²/sheet)', area:0, coverage:Number(q.sheetCoverageSqm), section:section };
+        plywood[plyKey].area += required(q.plywoodAreaSqm,'Formwork plywood area',true);
+        q.cutGroups.forEach(function(g) {
+          if (!g.cuts || !g.cuts.length) return;
+          var key = 'coco-' + g.spec;
+          if (!woodCutting[key]) woodCutting[key] = { key:key, label:'Coco lumber ' + g.spec.replace(/x/g,'×') + ' ft', stock:Number(g.stockLength), cuts:[], section:section };
+          if (Math.abs(woodCutting[key].stock - Number(g.stockLength)) > 1e-8) throw new Error('Inconsistent coco lumber stock length.');
+          g.cuts.forEach(function(cut) { woodCutting[key].cuts.push(cut); });
+        });
+        var nkey = 'form-nails-' + q.nailSize;
+        if (!formNails[nkey]) formNails[nkey] = { key:nkey,label:'Formwork nails ' + (q.nailSize === '3-concrete' ? '3 in (concrete)' : q.nailSize + ' in'),kg:0,section:section };
+        formNails[nkey].kg += required(q.nailKg,'Formwork nail kilograms',true);
       } else if (item.module === 'nail') {
         put('nails-' + (q.nailSize || 'mixed'), 'Nails (' + (q.nailSize || 'unspecified') + ')', q.buyKg || 0, 'kg', 'nails', section);
       } else throw new Error('Invalid project item category.');
@@ -290,6 +410,15 @@
     Object.keys(cutting).forEach(function(key) {
       var c = cutting[key];
       put(key, c.label, stockBarsForCuts(c.cuts, c.stock), 'bars', c.rateKey, c.section);
+    });
+    Object.keys(plywood).forEach(function(key) {
+      var g=plywood[key]; put(key,g.label,purchase(g.area/g.coverage),'sheets','plywood',g.section);
+    });
+    Object.keys(woodCutting).forEach(function(key) {
+      var g=woodCutting[key]; put(key,g.label,stockBarsForCuts(g.cuts,g.stock),'pcs','lumber',g.section);
+    });
+    Object.keys(formNails).forEach(function(key) {
+      var g=formNails[key]; put(key,g.label,Math.ceil(g.kg*2-1e-9)/2,'kg','formnails',g.section);
     });
     if (groups['wire-16']) groups['wire-16'].qty = Math.ceil(groups['wire-16'].qty * 2 - 1e-9) / 2;
     var rateOverrides = p.rateOverrides && typeof p.rateOverrides === 'object' ? p.rateOverrides : {};
@@ -307,6 +436,6 @@
       total: materials + labor + overhead + contingency,
       warnings: lines.filter(function(l) { return !l.rate; }).map(function(l) { return l.label + ': price not entered'; }) };
   }
-  return { steel: steel, paint: paint, tile: tile, nail: nail, concrete: concrete, cost: cost, projectSummary: projectSummary,
-    constants: { bars: BAR_WEIGHT, concrete: CONCRETE_CLASS, tiles: TILE_DATA, paint: PAINT_COVERAGE } };
+  return { steel: steel, paint: paint, tile: tile, nail: nail, concrete: concrete, formwork: formwork, cost: cost, projectSummary: projectSummary,
+    constants: { bars: BAR_WEIGHT, concrete: CONCRETE_CLASS, tiles: TILE_DATA, paint: PAINT_COVERAGE, formNails: FORMWORK_NAILS, formLumber: FORMWORK_LUMBER } };
 });

@@ -12,6 +12,7 @@ var MODULES = [
   { id: "paint",     title: "Pintura",          fil: "Paint",       icon: "fa-paint-roller",   desc: "Liters, gallons & primer for interior, exterior, waterproofing." },
   { id: "tile",      title: "Tiles",            fil: "Tiles",       icon: "fa-border-all",     desc: "Tile count, boxes, adhesive & grout for your floor area." },
   { id: "nail",      title: "Pako",             fil: "Nails",       icon: "fa-hammer",         desc: "Nail quantity & recommended size for roofing, framing, forms." },
+  { id: "formwork",  title: "Porma / Formwork", fil: "Forms", icon: "fa-layer-group", desc: "Phenolic plywood, cocolumber 2×2/2×3/2×4, slant braces every 2m & nails." },
   { id: "concrete",  title: "Semento/Graba",    fil: "Concrete",    icon: "fa-trowel-bricks",  desc: "Cement bags, buhangin, graba & water for your concrete pour." },
   { id: "cost",      title: "Cost",             fil: "Presyo",      icon: "fa-peso-sign",      desc: "Total estimated cost from current prices and saved quantities." },
   { id: "converter", title: "Converter",        fil: "Sukat",       icon: "fa-ruler",          desc: "Meters↔feet, inches↔cm, sqm↔sqft." }
@@ -250,7 +251,7 @@ function resultRows(resultTitle, sub, rows, note, totals) {
   showResult(resultTitle, sub, rows, totals || []);
   currentResult.note = note;
   $('#result-note').textContent = note || '';
-  $('#btn-add-project').hidden = !['steel','concrete','paint','tile','nail'].includes(currentModule);
+  $('#btn-add-project').hidden = !['steel','concrete','paint','tile','nail','formwork'].includes(currentModule);
   $('#project-item-label').hidden = $('#btn-add-project').hidden;
   currentResult.inputValues = captureInputs($('.calc-form[data-module="' + currentModule + '"]'));
 }
@@ -279,6 +280,7 @@ function restoreInputs(entry) {
     chip.classList.toggle('is-active', active);
     chip.setAttribute('aria-checked', String(active));
   });
+  if (module === 'formwork') updateFormworkFields(false);
   showView('calculators');
   selectModule(module);
   toast('Restored input fields. Recalculate before saving.', 'fa-rotate-left');
@@ -412,6 +414,48 @@ function runConcrete(silent) {
     return r;
   }, silent);
 }
+
+function updateFormworkFields(autofill) {
+  var type = field('form-type'), byArea = type === 'area';
+  $('#form-dimensions').hidden = byArea;
+  $('#form-area-group').hidden = !byArea;
+  $('#form-framing-group').hidden = byArea;
+  $('#form-height-group').hidden = ['column','beam','footing'].indexOf(type) === -1;
+  ['form-length','form-width'].forEach(function(id) { $('#'+id).disabled = byArea; });
+  $('#form-height').disabled = ['column','beam','footing'].indexOf(type) === -1;
+  $('#form-area').disabled = !byArea;
+  ['form-lumber','form-brace-lumber','form-joist-spacing','form-brace-spacing','form-brace-length','form-braces-per'].forEach(function(id) { $('#'+id).disabled = byArea; });
+  if (autofill) $('#form-joist-spacing').value = type === 'slab' || type === 'scaffolding' ? '40' : '60';
+}
+function runFormwork(silent) {
+  return safeCompute(function () {
+    var r = BuildCalcEngine.formwork({type:field('form-type'), length:field('form-length'), width:field('form-width'),
+      height:field('form-height'),areaSqm:field('form-area'),count:field('form-count'),
+      plywoodThickness:field('form-plywood'),sheetCoverageSqm:field('form-coverage'),plywoodWastePct:field('form-plywood-waste'),
+      frameLumber:field('form-lumber'),braceLumber:field('form-brace-lumber'),
+      framingSpacingCm:field('form-joist-spacing'),braceSpacingM:field('form-brace-spacing'),
+      braceLengthM:field('form-brace-length'),bracesPerStation:field('form-braces-per'),
+      nailSize:field('form-nail-size'),nailGram:field('form-nail-gram'),nailsPerSqm:field('form-nails-per'),nailWastePct:field('form-nail-waste')});
+    var rows = [
+      {label:'Plywood Formwork Area',fil:r.elementCount+' element(s) · contact surface',value:fmt(r.areaSqm,3)+' m²'},
+      {label:'Adjusted Plywood Area',fil:field('form-plywood-waste')+'% entered plywood allowance',value:fmt(r.plywoodAreaSqm,3)+' m²'},
+      {label:'Phenolic Plywood to Buy',fil:r.plywoodThickness+' inch · '+fmt(r.sheetCoverageSqm,4)+' m²/sheet',value:r.plywoodSheets+' whole sheet(s)',hero:true}
+    ];
+    if (r.type !== 'area') rows.push(
+      {label:'Frame / Joist Stations',fil:fmt(r.framingSpacingCm,1)+' cm spacing (station count per element)',value:r.framingStations+' stations'},
+      {label:'Coco Lumber — Frame',fil:r.frameLumber.replace(/x/g,'×')+' (inch × inch × feet)',value:r.framingBars+' pcs'},
+      {label:'Slant Braces / Palikpik',fil:fmt(r.braceSpacingM,2)+' m intervals × '+fmt(r.braceLengthM,2)+' m cut',value:r.braceCount+' braces'},
+      {label:'Coco Lumber — Braces',fil:r.braceLumber.replace(/x/g,'×')+' (inch × inch × feet)',value:r.braceBars+' pcs'},
+      {label:'Long-Member Cut Breaks',fil:'Cutting estimate only; connections need approved details',value:r.woodJoints+' breaks'});
+    rows.push({label:'Pako / Fasteners',fil:(r.nailSize === '3-concrete' ? '3-inch concrete nail' : r.nailSize+' inch')+' · '+fmt(Number(field('form-nails-per')),1)+' pcs/m²',value:r.nailCount+' nails'},
+      {label:'Pako to Buy',fil:fmt(r.nailKg,3)+' kg exact · purchasing rounded to 0.5 kg',value:fmt(r.nailBuyKg,1)+' kg'});
+    storeQuantities('formwork',r);
+    resultRows('Porma / Formwork Material Take-off',r.type+' · '+r.elementCount+' element(s)',rows,r.note);
+    currentResult.quantity = r; currentResult.section = r.type === 'area' ? 'formwork' : r.type;
+    return r;
+  },silent);
+}
+
 function runCost(silent) {
   return safeCompute(function () {
     var prices = {
@@ -419,11 +463,13 @@ function runCost(silent) {
       paint: priceField('paint'), primer: priceField('primer'), tile: priceField('tile'),
       adhesive: priceField('adhesive'), grout: priceField('grout'), nails: priceField('nails'),
       sand: priceField('sand'), gravel: priceField('gravel'), labor: priceField('labor'),
+      plywood: priceField('plywood'), lumber: priceField('lumber'), formnails: priceField('formnails'),
       days: field('cost-days'), workers: field('cost-workers'),
       overheadPct: field('cost-overhead'), contingencyPct: field('cost-contingency')
     };
     var q = loadJSON(QUANT_KEY, {});
-    if (q && ((q.steel && q.steel.pieces != null && q.steel.mainPieces == null) ||
+    if (q && ((q.formwork && q.formwork.plywoodSheets != null && !q.formwork.cutGroups) ||
+      (q.steel && q.steel.pieces != null && q.steel.mainPieces == null) ||
       (q.steel && q.steel.mainPieces != null && q.steel.wireBuyKg == null) ||
       (q.paint && q.paint.gallons != null && q.paint.cans == null) ||
       (q.tile && q.tile.boxes != null && q.tile.adhesiveBags == null) ||
@@ -694,6 +740,7 @@ function runCalc(form, silent) {
   if (m === 'tile') return runTile(silent);
   if (m === 'nail') return runNail(silent);
   if (m === 'concrete') return runConcrete(silent);
+  if (m === 'formwork') return runFormwork(silent);
   if (m === 'cost') return runCost(silent);
 }
 function wireForms() {
@@ -705,6 +752,8 @@ function wireForms() {
         if (input.id === 'steel-project') updateSteelFields();
         if (input.id === 'conc-project') updateConcreteFields();
         if (input.id === 'tile-size') updateTileBoxDefault();
+        if (input.id === 'form-type') updateFormworkFields(true);
+        if (input.id === 'form-nail-size') $('#form-nail-gram').value = BuildCalcEngine.constants.formNails[field('form-nail-size')];
         if (input.id === 'paint-type') {
           $('#paint-coverage').value = BuildCalcEngine.constants.paint[field('paint-type')];
           $('#paint-primer').disabled = field('paint-type') === 'primer';
@@ -731,6 +780,7 @@ function wireForms() {
         updateSteelFields();
       }
       if (form.dataset.module === 'concrete') updateConcreteFields();
+      if (form.dataset.module === 'formwork') updateFormworkFields(false);
       if (form.dataset.module === 'paint') { $('#paint-primer').disabled = false; }
       if (form.dataset.module === 'converter') updateConverter();
       else runCalc(form, true);
@@ -738,7 +788,7 @@ function wireForms() {
   });
 }
 function exportBackup() {
-  var backup = { app: 'BuildCalc', version: 3, projects: getProjects(), activeProject: localStorage.getItem(ACTIVE_PROJECT_KEY), exportedAt: new Date().toISOString(),
+  var backup = { app: 'BuildCalc', version: 4, projects: getProjects(), activeProject: localStorage.getItem(ACTIVE_PROJECT_KEY), exportedAt: new Date().toISOString(),
     saved: getSaved(), quantities: loadJSON(QUANT_KEY, {}), prices: loadJSON(PRICE_KEY, {}) };
   var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   var url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -778,7 +828,7 @@ function importBackup(file) {
 function restorePrices() {
   var p = loadJSON(PRICE_KEY, null);
   if (!p || typeof p !== 'object') return;
-  ['wire','cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor'].forEach(function(key) {
+  ['wire','cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor','plywood','lumber','formnails'].forEach(function(key) {
     if (p[key] != null && Number.isFinite(Number(p[key])) && Number(p[key]) >= 0) $('#price-' + key).value = p[key];
   });
   ['days','workers'].forEach(function(key) {
@@ -794,6 +844,7 @@ function restorePrices() {
 function init() {
   buildModuleBar();
   buildHomeCards();
+  updateFormworkFields(false);
   wireForms();
   initConverter();
 

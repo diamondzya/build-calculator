@@ -6,7 +6,8 @@ var editingProjectId = null;
 var SECTION_LABELS = {
   footing: '01 — Pundasyon / Footings', column: '02 — Poste / Columns', beam: '03 — Biga / Beams',
   slab: '04 — Palapag / Slabs', staircase: '05 — Hagdan / Stairs', fence: '06 — Bakod / Fences',
-  concrete: '07 — Concrete Work', paint: '08 — Painting', tile: '09 — Tiles', nail: '10 — Fasteners'
+  scaffolding: '07 — Scaffold / Platform Forms', concrete: '08 — Concrete Work', paint: '09 — Painting',
+  tile: '10 — Tiles', nail: '11 — Fasteners', formwork: '12 — General Porma / Formwork'
 };
 function uniqueId(prefix) { return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9); }
 function getProjects() {
@@ -33,7 +34,7 @@ function saveProject(project) {
 }
 function readProjectPrices() {
   var p = {};
-  ['cement','steel','ties','wire','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor'].forEach(function(k) { p[k] = priceField(k); });
+  ['cement','steel','ties','wire','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor','plywood','lumber','formnails'].forEach(function(k) { p[k] = priceField(k); });
   p.days = field('cost-days'); p.workers = field('cost-workers');
   p.overheadPct = field('cost-overhead'); p.contingencyPct = field('cost-contingency');
   return p;
@@ -53,10 +54,11 @@ function lineItemDescription(item) {
   if (item.module === 'paint') return q.cans + ' cans of ' + fmt(q.canLiters, 3) + ' L paint · ' + q.primerCans + ' cans primer';
   if (item.module === 'tile') return q.boxes + ' boxes (' + q.tiles + ' tiles) · ' + q.adhesiveBags + ' bags adhesive · ' + fmt(q.groutBuyKg, 2) + ' kg grout';
   if (item.module === 'nail') return q.count + ' nails · ' + fmt(q.buyKg, 2) + ' kg';
+  if (item.module === 'formwork') return fmt(q.areaSqm,3) + ' m² porma · ' + q.plywoodSheets + ' phenolic sheets · ' + q.framingBars + ' framing stock · ' + q.braceCount + ' braces · ' + fmt(q.nailBuyKg,1) + ' kg nails';
   return 'Material quantity';
 }
 function addCurrentToProject() {
-  if (!currentResult || !currentResult.quantity || !['steel','concrete','paint','tile','nail'].includes(currentModule)) {
+  if (!currentResult || !currentResult.quantity || !['steel','concrete','paint','tile','nail','formwork'].includes(currentModule)) {
     toast('Calculate a material first.', 'fa-triangle-exclamation'); return;
   }
   var project = editingProjectId ? getProjects().find(function(p) { return p.id === editingProjectId; }) : getActiveProject();
@@ -199,7 +201,7 @@ function projectPrintHTML(project, summary) {
     summary.lines.map(function(l) { return '<tr><td>' + escapeHTML(l.label) + '</td><td class="num">' + escapeHTML(fmt(l.qty,3) + ' ' + l.unit) + ' · ' + escapeHTML(money(l.amount)) + '</td></tr>'; }).join('') +
     '</tbody></table><div class="pr-total">Project Total: ' + money(summary.total) + '</div>' +
     '<p class="pr-foot">Materials ' + money(summary.materials) + ' · Labor ' + money(summary.labor) + ' · Overhead ' + money(summary.overhead) + ' · Contingency ' + money(summary.contingency) + '</p>' +
-    '<p class="pr-foot">Preliminary quantities only. Bar splice positions, lap/development lengths, hooks and excavation levels must match approved structural drawings. Supplier prices must be verified.</p></section>';
+    '<p class="pr-foot">Preliminary quantities only. Rebar/splices and formwork, joists, temporary braces, shoring/scaffold safety and connections must follow approved structural and temporary-works plans. Supplier prices must be verified.</p></section>';
 }
 function printProject() {
   var project = getActiveProject();

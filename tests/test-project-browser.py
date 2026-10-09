@@ -116,7 +116,7 @@ with sync_playwright() as p:
     with page.expect_download() as backup_info:page.click('#btn-export-backup')
     backup=out/'v3-backup.json'; backup_info.value.save_as(str(backup))
     stored=json.loads(backup.read_text())
-    assert stored['version']==3 and stored['projects'][0]['items'] and stored['projects'][0]['priceOverrides']
+    assert stored['version']==4 and stored['projects'][0]['items'] and stored['projects'][0]['priceOverrides']
     assert len(stored['projects'][0]['items'])==4
     page.evaluate("() => localStorage.removeItem('buildcalc.projects.v3')")
     page.click('.nav-btn[data-view="projects"]')

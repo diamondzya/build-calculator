@@ -36,7 +36,7 @@
     <div class="hero">
       <p class="hero-kicker">Para sa mga kontratista at manggagawa</p>
       <h2>Estimate your construction materials quickly and accurately</h2>
-      <p class="hero-sub">Steel, concrete, paint, tiles and nails — organized into full project sheets with one purchasing summary.</p>
+      <p class="hero-sub">Steel, concrete, formwork, paint, tiles and nails — organized into full project sheets with one purchasing summary.</p>
       <button class="btn btn-primary btn-lg" id="btn-start" type="button">
         <i class="fa-solid fa-calculator"></i> Start Calculating
       </button>
@@ -343,6 +343,82 @@
         </div>
       </form>
 
+
+      <!-- ===== FORMWORK / PORMA ===== -->
+      <form class="calc-form" id="form-formwork" data-module="formwork" hidden>
+        <div class="form-head">
+          <h3><i class="fa-solid fa-layer-group"></i> Porma / Formwork Calculator</h3>
+          <p>Phenolic plywood, coco lumber, pako, and diagonal braces. Add quantities to a project section's detailed sheet.</p>
+        </div>
+        <div class="field">
+          <label for="form-type">Porma para saan?</label>
+          <select id="form-type" required>
+            <option value="column">Poste / Column — four faces</option>
+            <option value="beam">Biga / Beam — bottom + two sides</option>
+            <option value="slab" selected>Slab / Palapag — underside</option>
+            <option value="footing">Pundasyon — four sides</option>
+            <option value="scaffolding">Scaffold — platform take-off only</option>
+            <option value="area">Per Square Meter — plywood area only</option>
+          </select>
+        </div>
+        <div id="form-dimensions">
+          <div class="field-row">
+            <div class="field"><label for="form-length">Length (Poste: Height) <em>m</em></label><input id="form-length" type="number" min="0.01" step="0.01" value="4" required></div>
+            <div class="field"><label for="form-width">Width <em>m</em></label><input id="form-width" type="number" min="0.01" step="0.01" value="2" required></div>
+          </div>
+          <div class="field" id="form-height-group" hidden><label for="form-height">Poste / Biga / Pundasyon Second Dimension (Height or Depth) <em>m</em></label><input id="form-height" type="number" min="0.01" step="0.01" value="0.4" required></div>
+        </div>
+        <div class="field" id="form-area-group" hidden>
+          <label for="form-area">Formwork Area per Element <em>m²</em></label>
+          <input id="form-area" type="number" min="0.01" step="0.01" value="2" required>
+          <p class="form-note">Only plywood and nails will be counted here. Enter actual dimensions for framing and diagonal braces.</p>
+        </div>
+        <div class="field"><label for="form-count">Number of Identical Elements</label><input id="form-count" type="number" min="1" step="1" value="1" required></div>
+        <div class="steel-detail">
+          <h4>Phenolic Plywood / Pynolic</h4>
+          <div class="field-row">
+            <div class="field"><label for="form-plywood">Phenolic Thickness</label><select id="form-plywood"><option value="1/2" selected>1/2 inch (12 mm)</option><option value="3/4">3/4 inch (18 mm)</option></select></div>
+            <div class="field"><label for="form-coverage">Effective Area per Sheet <em>m²</em></label><input id="form-coverage" type="number" min="0.01" max="10" step="0.0001" value="2.44" required></div>
+          </div>
+          <div class="field"><label for="form-plywood-waste">Plywood Cutting / Waste Allowance <em>%</em></label><input id="form-plywood-waste" type="number" min="0" max="100" step="1" value="0" required></div>
+          <p class="form-note"><strong>Rule:</strong> Sheets = round UP (total covered area ÷ effective sheet area). 2.44 m² → 1 sheet; 2.5 m² → 2 sheets. Standard 4×8 ft plywood is 1.22 m × 2.44 m = 2.9768 m² gross; this input uses your preferred 2.44 m² effective coverage unless changed. Actual cut layout matters.</p>
+        </div>
+        <div class="steel-detail" id="form-framing-group">
+          <h4>Coco Lumber / Kahoy at Slant Braces</h4>
+          <div class="field-row">
+            <div class="field"><label for="form-lumber">Framing Coco Lumber <em>in × in × ft</em></label>
+              <select id="form-lumber"><option value="2x2x8">2×2×8</option><option value="2x2x10">2×2×10</option><option value="2x2x12">2×2×12</option><option value="2x3x8">2×3×8</option><option value="2x3x10" selected>2×3×10</option><option value="2x3x12">2×3×12</option><option value="2x4x8">2×4×8</option><option value="2x4x10">2×4×10</option><option value="2x4x12">2×4×12</option><option value="3x3x10">3×3×10</option><option value="3x3x12">3×3×12</option></select></div>
+            <div class="field"><label for="form-brace-lumber">Brace / Slant Coco Lumber</label>
+              <select id="form-brace-lumber"><option value="2x2x8">2×2×8</option><option value="2x2x10" selected>2×2×10</option><option value="2x2x12">2×2×12</option><option value="2x3x8">2×3×8</option><option value="2x3x10">2×3×10</option><option value="2x3x12">2×3×12</option><option value="2x4x8">2×4×8</option><option value="2x4x10">2×4×10</option><option value="2x4x12">2×4×12</option><option value="3x3x10">3×3×10</option><option value="3x3x12">3×3×12</option></select></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="form-joist-spacing">Frame / Joist Spacing <em>cm (slab default 40)</em></label><input id="form-joist-spacing" type="number" min="10" max="500" step="1" value="40" required></div>
+            <div class="field"><label for="form-brace-spacing">Slant Brace Interval <em>m (default 2)</em></label><input id="form-brace-spacing" type="number" min="0.1" max="20" step="0.1" value="2" required></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="form-brace-length">Slant Brace Cut Length <em>m/brace</em></label><input id="form-brace-length" type="number" min="0.1" max="20" step="0.1" value="1.5" required></div>
+            <div class="field"><label for="form-braces-per">Braces per Interval</label><input id="form-braces-per" type="number" min="1" max="12" step="1" value="1" required></div>
+          </div>
+          <p class="form-note">For slab: joists every 40 cm across its width, plus perimeter runners. For braces: one station every 2 m along the applicable run, with a configurable brace quantity and cut length. Site layout and safe bearing/support must be engineered.</p>
+        </div>
+        <div class="steel-detail">
+          <h4>Pako para sa Porma</h4>
+          <div class="field-row">
+            <div class="field"><label for="form-nail-size">Nail Size / Kind</label><select id="form-nail-size"><option value="1">1 inch</option><option value="1.5">1½ inch</option><option value="2" selected>2 inch</option><option value="3">3 inch</option><option value="3-concrete">3 inch concrete nail</option></select></div>
+            <div class="field"><label for="form-nail-gram">Individual Nail Weight <em>g/nail</em></label><input id="form-nail-gram" type="number" min="0.01" step="0.1" value="2.8" required></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="form-nails-per">Nails per Formwork Area <em>pcs/m²</em></label><input id="form-nails-per" type="number" min="0" max="1000" step="1" value="20" required></div>
+            <div class="field"><label for="form-nail-waste">Extra Nails <em>%</em></label><input id="form-nail-waste" type="number" min="0" max="100" step="1" value="10" required></div>
+          </div>
+          <p class="form-note">Nail rate and mass are adjustable estimating assumptions; confirm actual supplier product and site fastening schedule.</p>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate Formwork Materials</button>
+          <button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+        </div>
+      </form>
+
       <!-- ===== COST ===== -->
       <form class="calc-form" id="form-cost" data-module="cost" hidden>
         <div class="form-head">
@@ -383,6 +459,9 @@
           <div class="field"><label for="price-grout">Tile Grout <em>(₱ / kg)</em></label><input type="number" id="price-grout" min="0" step="0.01" value="0" required></div>
           <div class="field"><label for="price-sand">Sand <em>(₱ / m³)</em></label><input type="number" id="price-sand" min="0" step="0.01" value="0" required></div>
           <div class="field"><label for="price-gravel">Gravel <em>(₱ / m³)</em></label><input type="number" id="price-gravel" min="0" step="0.01" value="0" required></div>
+          <div class="field"><label for="price-plywood">Phenolic Plywood <em>(₱ / sheet)</em></label><input type="number" id="price-plywood" min="0" step="0.01" value="0" required></div>
+          <div class="field"><label for="price-lumber">Coco Lumber <em>(₱ / stock piece)</em></label><input type="number" id="price-lumber" min="0" step="0.01" value="0" required></div>
+          <div class="field"><label for="price-formnails">Formwork Nails <em>(₱ / kg)</em></label><input type="number" id="price-formnails" min="0" step="0.01" value="0" required></div>
         </div>
         <div class="field-row">
           <div class="field"><label for="cost-workers">Number of Workers</label><input type="number" id="cost-workers" min="0" step="1" value="1" required></div>
@@ -493,7 +572,7 @@
         <div class="field"><label for="project-name">Project Name</label><input id="project-name" type="text" maxlength="100" placeholder="House Construction – Cainta"></div>
       </div>
       <div class="sheet-toolbar"><button class="btn btn-outline" id="project-rename" type="button">Save Project Name</button><button class="btn btn-ghost" id="project-delete" type="button">Delete This Project</button><button class="btn btn-outline" id="project-pricing" type="button">Edit Material Prices</button></div>
-      <div id="project-empty" class="empty-state" hidden><i class="fa-solid fa-clipboard-list"></i><h4>No items in this project yet</h4><p>Calculate steel, concrete, paint, tiles or nails, then click <b>Add to Project Sheet</b>.</p></div>
+      <div id="project-empty" class="empty-state" hidden><i class="fa-solid fa-clipboard-list"></i><h4>No items in this project yet</h4><p>Calculate steel, formwork, concrete, paint, tiles or nails, then click <b>Add to Project Sheet</b>.</p></div>
       <div id="project-details" class="sheet-details"></div>
       <div class="sheet-summary" id="project-summary"><h3>Consolidated Material Summary</h3><div id="project-summary-lines"></div><div id="project-summary-total"></div></div>
       <p class="form-note">Quantities are preliminary. Stock-bar counts are optimized across cuts with matching role, diameter and stock length; cutting layouts, splicing positions, hooks and bend deductions must be checked by a qualified engineer/fabricator. Prices are user-supplied.</p>

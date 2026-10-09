@@ -1,3 +1,42 @@
+# BuildCalc v4 — Porma / Formwork Quantity Take-off
+
+Offline HTML/CSS/JavaScript material estimating system. Preserves and extends the v3 project sheets, rebar, tie-wire, hooks, splices, concrete, nails, paint and tiles. Open `index.html` after extracting **all** files. No installation or network connection required.
+
+## New Porma / Formwork module
+
+- Choose **Poste / Column** (four faces), **Biga / Beam** (soffit and two sides), **Slab / Palapag** (underside), **Pundasyon / Footing** (four side faces), **Scaffold** (platform plywood/framing **only**, not full scaffold), or **Per Square Meter** (direct plywood area, without guessed timber geometry).
+- Choose phenolic thickness **1/2 inch** or **3/4 inch**. Set the **effective coverage per sheet**, default **2.44 m²**, and optional percentage cutting waste (default 0%). Formula: `purchased sheets = ceil((formwork contact area × (1 + plywood waste / 100)) / effective sheet coverage)`. Thus 2.00 m² -> 1 sheet, 2.44 -> 1, 2.50 -> 2, 4.88 -> 2, 5.00 -> 3. Note: the standard 1.22m × 2.44m (4×8 ft) nominal sheet has **2.9768 m² gross surface area**; 2.44 here is the user's requested **effective cover**, not the physical sheet area. Individual panel shapes/cuts could require more sheets.
+- Choose framing coco lumber **2×2×8/10/12 ft**, **2×3×8/10/12 ft**, **2×4×8/10/12 ft**, **3×3×10/12 ft**; choose a separate stock specification for diagonal braces (slants). Board dimensions in inches; last dimension in feet.
+- Enter **joist/batten frame spacing**, preset to **40 cm** for slab/platforms and **60 cm** for columns/beams/footings; adjustable. Slab rule: `number of joists = ceil(slab width / spacing) + 1`, each joist spans entered length, plus approximate perimeter runners.
+- Enter diagonal brace station spacing, **2 meters by default**, along the formwork run; specify **braces per station** (1 default) and diagonal member cut length (1.5 m default). Rule: `ceil(relevant run / 2m) × braces per station × identical elements`. This is only a quantity allowance; NOT a temporary-works bracing or scaffold design.
+- Nails choices: **1", 1½", 2", 3" common** or **3" concrete nail**, adjustable piece weights in grams, nail consumption per m², nail waste, and 0.5kg purchasing increments. Manufacturer weights and fastening details vary.
+- Enter count of identical sections. Item results show contact area, adjusted plywood area, full purchased sheets, framing lumber sticks, braces/sticks, and nail pcs/kg. Wood stock uses estimated cut packing by dimension and stock length; joining long members is **NOT** structurally validated.
+- **Add to Project Sheet** places formwork beside its corresponding footing/column/beam/slab group; detailed section reports and **Full Report PDF** show it. The consolidated BOQ groups plywood by **thickness and sheet coverage**, coco lumber by stock dimension and length, and nails by size, **pooling material areas/masses before purchasing rounding**. Default prices are set under Calculator → Cost for plywood/sheet, coco lumber/piece and formwork nails/kg, with project-specific rate overrides per specification.
+- Browser localStorage and JSON backups retain existing v3 projects. Backup format version is now 4, but v3 JSON backups may still be restored. Existing v3 projects are not silently recalculated.
+
+### Important limitations
+
+**The porma calculator is a preliminary material take-off, not a structural or temporary-works design.** It does not certify joist spans, plywood thickness, wet-concrete pressure, shoring/props, bracing strength, scaffold safety, permanent or temporary fastening capacity, or formwork re-use sequencing. All such details must be checked against approved engineering drawings and site specifications. Stock segment packing is an arithmetic purchase estimate; connections/splices must be independently designed.
+
+The default **2.44 m² effective coverage** was explicitly requested; switch to **2.9768** if estimating gross 1.22 × 2.44 m full sheets before any cut allowance. Real sheet count can be higher due to shape/cuts, waste, and non-reusable offcuts. Project consolidation assumes compatible cut usage across entries, and is not an optimized cutting-plan guarantee.
+
+### Tests
+
+From the extracted folder:
+
+```bash
+node tests/test-engine.cjs
+node tests/test-project-engine.cjs
+node tests/test-formwork-engine.cjs
+python tests/test-browser.py
+python tests/test-project-browser.py
+python tests/test-formwork-browser.py
+```
+
+---
+
+## Previous v3 functionality retained
+
 # BuildCalc v3 — Anilyo, Column Splices and Project BOQ Sheets
 
 A **standalone, offline-first HTML/CSS/JavaScript** preliminary construction quantity estimator. This update builds on BuildCalc v2. It does not require an account, database, or internet connection.
