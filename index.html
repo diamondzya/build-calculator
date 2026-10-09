@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en-PH">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f57c00">
+<title>BuildCalc — Construction Material Calculator</title>
+<link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="app-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-mark"><i class="fa-solid fa-helmet-safety"></i></div>
+      <div class="brand-text">
+        <h1>BuildCalc</h1>
+        <p>Construction Material Calculator</p>
+      </div>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <button class="nav-btn is-active" data-view="home" type="button"><i class="fa-solid fa-house"></i><span>Home</span></button>
+      <button class="nav-btn" data-view="calculators" type="button"><i class="fa-solid fa-calculator"></i><span>Calculator</span></button>
+      <button class="nav-btn" data-view="saved" type="button"><i class="fa-solid fa-clock-rotate-left"></i><span>Saved</span></button>
+      <button class="nav-btn" data-view="about" type="button"><i class="fa-solid fa-circle-info"></i><span>About</span></button>
+    </nav>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- ============ VIEW: HOME ============ -->
+  <section class="view is-active" id="view-home" aria-label="Home">
+    <div class="hero">
+      <p class="hero-kicker">Para sa mga kontratista at manggagawa</p>
+      <h2>Estimate your construction materials quickly and accurately</h2>
+      <p class="hero-sub">Steel, paint, tiles, nails, and concrete — computed from your measurements before you buy supplies.</p>
+      <button class="btn btn-primary btn-lg" id="btn-start" type="button">
+        <i class="fa-solid fa-calculator"></i> Start Calculating
+      </button>
+    </div>
+
+    <div class="calc-grid" id="home-calc-grid">
+      <!-- module cards injected by JS -->
+    </div>
+  </section>
+
+  <!-- ============ VIEW: CALCULATORS ============ -->
+  <section class="view" id="view-calculators" aria-label="Material calculator">
+    <div class="calc-shell">
+
+      <!-- module switcher -->
+      <div class="module-bar" id="module-bar" role="tablist" aria-label="Calculator modules">
+        <!-- buttons injected by JS -->
+      </div>
+
+      <!-- ===== STEEL ===== -->
+      <form class="calc-form" id="form-steel" data-module="steel" hidden>
+        <div class="form-head">
+          <h3><i class="fa-solid fa-ruler-combined"></i> Anilyo / Steel Bar Calculator</h3>
+          <p>Rebar quantity, length, and weight for your structural element.</p>
+        </div>
+        <div class="field">
+          <label for="steel-project">Project Type</label>
+          <select id="steel-project" required>
+            <option value="footing">Footing (Pundasyon)</option>
+            <option value="column">Column (Haligi)</option>
+            <option value="beam" selected>Beam (Kable)</option>
+            <option value="slab">Slab (Palapag)</option>
+            <option value="staircase">Staircase (Hagdan)</option>
+            <option value="fence">Fence (Bakod)</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="steel-length">Length <em>(m)</em></label>
+            <input type="number" id="steel-length" min="0" step="0.1" value="6" required>
+          </div>
+          <div class="field">
+            <label for="steel-width">Width <em>(m)</em></label>
+            <input type="number" id="steel-width" min="0" step="0.1" value="0.3" required>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="steel-height">Height / Depth <em>(m)</em></label>
+            <input type="number" id="steel-height" min="0" step="0.1" value="0.5" required>
+          </div>
+          <div class="field">
+            <label for="steel-spacing">Spacing <em>(cm)</em></label>
+            <select id="steel-spacing" required>
+              <option value="10">10 cm</option>
+              <option value="15" selected>15 cm</option>
+              <option value="20">20 cm</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Steel Bar Size</label>
+          <div class="chip-row" id="steel-size" role="radiogroup" aria-label="Steel bar size">
+            <button type="button" class="chip" data-value="10" role="radio" aria-checked="false">10mm</button>
+            <button type="button" class="chip is-active" data-value="12" role="radio" aria-checked="true">12mm</button>
+            <button type="button" class="chip" data-value="16" role="radio" aria-checked="false">16mm</button>
+            <button type="button" class="chip" data-value="20" role="radio" aria-checked="false">20mm</button>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button>
+          <button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+        </div>
+      </form>
+
+      <!-- ===== PAINT ===== -->
+      <form class="calc-form" id="form-paint" data-module="paint" hidden>
+        <div class="form-head">
+          <h3><i class="fa-solid fa-paint-roller"></i> Pintura / Paint Calculator</h3>
+          <p>Liters, gallons, and primer for your walls.</p>
+        </div>
+        <div class="field">
+          <label for="paint-type">Paint Type</label>
+          <select id="paint-type" required>
+            <option value="interior" selected>Interior Wall Paint</option>
+            <option value="exterior">Exterior Paint</option>
+            <option value="primer">Primer</option>
+            <option value="waterproofing">Waterproofing Paint</option>
+            <option value="enamel">Enamel Paint</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="paint-length">Wall Length <em>(m)</em></label>
+            <input type="number" id="paint-length" min="0" step="0.1" value="10" required>
+          </div>
+          <div class="field">
+            <label for="paint-height">Wall Height <em>(m)</em></label>
+            <input type="number" id="paint-height" min="0" step="0.1" value="3" required>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="paint-walls">Number of Walls</label>
+            <input type="number" id="paint-walls" min="1" step="1" value="4" required>
+          </div>
+          <div class="field">
+            <label for="paint-coats">Number of Coats</label>
+            <select id="paint-coats" required>
+              <option value="1">1 coat</option>
+              <option value="2" selected>2 coats</option>
+              <option value="3">3 coats</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button>
+          <button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+        </div>
+      </form>
+
+      <!-- ===== TILE ===== -->
+      <form class="calc-form" id="form-tile" data-module="tile" hidden>
+        <div class="form-head">
+          <h3><i class="fa-solid fa-border-all"></i> Tile Calculator</h3>
+          <p>Tile count, boxes, adhesive, and grout for your floor.</p>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="tile-length">Floor Length <em>(m)</em></label>
+            <input type="number" id="tile-length" min="0" step="0.1" value="6" required>
+          </div>
+          <div class="field">
+            <label for="tile-width">Floor Width <em>(m)</em></label>
+            <input type="number" id="tile-width" min="0" step="0.1" value="5" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="tile-size">Tile Size</label>
+          <select id="tile-size" required>
+            <option value="30x30">30 × 30 cm</option>
+            <option value="40x40">40 × 40 cm</option>
+            <option value="60x60" selected>60 × 60 cm</option>
+            <option value="30x60">30 × 60 cm</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="tile-allowance">Extra Allowance <em>(wasteage &amp; cuts)</em></label>
+          <select id="tile-allowance" required>
+            <option value="0.05">5%</option>
+            <option value="0.10" selected>10%</option>
+            <option value="0.15">15%</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button>
+          <button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+        </div>
+      </form>
+
+      <!-- ===== NAIL ===== -->
+      <form class="calc-form" id="form-nail" data-module="nail" hidden>
+        <div class="form-head">
+          <h3><i class="fa-solid fa-hammer"></i> Pako / Nail Calculator</h3>
+          <p>Nail count and recommended nail size for the job.</p>
+        </div>
+        <div class="field">
+          <label for="nail-material">Material Type</label>
+          <select id="nail-material" required>
+            <option value="roofing" selected>Roofing (Bubong)</option>
+            <option value="framing">Wood Framing</option>
+            <option value="formwork">Concrete Formwork</option>
+            <option value="fence">Fence (Bakod)</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="nail-length">Length of Structure <em>(m)</em></label>
+            <input type="number" id="nail-length" min="0" step="0.1" value="10" required>
+          </div>
+          <div class="field">
+            <label for="nail-boards">Number of Boards</label>
+            <input type="number" id="nail-boards" min="0" step="1" value="20" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="nail-spacing">Spacing <em>(cm)</em></label>
+          <select id="nail-spacing" required>
+            <option value="20">20 cm</option>
+            <option value="30" selected>30 cm</option>
+            <option value="40">40 cm</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button>
+          <button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+        </div>
+      </form>
+
+      <!-- ===== CONCRETE ===== -->
+      <form class="calc-form" id="form-concrete" data-module="concrete" hidden>
+        <div class="form-head">
+          <h3><i class="fa-solid fa-trowel-bricks"></i> Semento, Buhangin, Graba Calculator</h3>
+          <p>Cement bags, sand, gravel, and water for your concrete pour.</p>
+        </div>
+        <div class="field">
+          <label for="conc-project">Project Type</label>
+          <select id="conc-project" required>
+            <option value="column">Column (Haligi)</option>
+            <option value="slab" selected>Slab (Palapag)</option>
+            <option value="footing">Footing (Pundasyon)</option>
+            <option value="beam">Beam (Kable)</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="conc-length">Length <em>(m)</em></label>
+            <input type="number" id="conc-length" min="0" step="0.1" value="4" required>
+          </div>
+          <div class="field">
+            <label for="conc-width">Width <em>(m)</em></label>
+            <input type="number" id="conc-width" min="0" step="0.1" value="3" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="conc-height">Height / Thickness <em>(m)</em></label>
+          <input type="number" id="conc-height" min="0" step="0.1" value="0.1" required>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button>
+          <button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+        </div>
+      </form>
+
+      <!-- ===== COST ===== -->
+      <form class="calc-form" id="form-cost" data-module="cost" hidden>
+        <div class="form-head">
+          <h3><i class="fa-solid fa-peso-sign"></i> Material Cost Estimator</h3>
+          <p>Enter current prices, combine with saved quantities, get the total.</p>
+        </div>
+        <div class="cost-grid">
+          <div class="field">
+            <label for="price-cement">Cement <em>(₱ / bag)</em></label>
+            <input type="number" id="price-cement" min="0" step="1" value="250" required>
+          </div>
+          <div class="field">
+            <label for="price-steel">Steel Bar <em>(₱ / piece)</em></label>
+            <input type="number" id="price-steel" min="0" step="1" value="300" required>
+          </div>
+          <div class="field">
+            <label for="price-paint">Paint <em>(₱ / gallon)</em></label>
+            <input type="number" id="price-paint" min="0" step="1" value="900" required>
+          </div>
+          <div class="field">
+            <label for="price-tile">Tiles <em>(₱ / box)</em></label>
+            <input type="number" id="price-tile" min="0" step="1" value="800" required>
+          </div>
+          <div class="field">
+            <label for="price-nails">Nails <em>(₱ / kg)</em></label>
+            <input type="number" id="price-nails" min="0" step="1" value="120" required>
+          </div>
+          <div class="field">
+            <label for="price-labor">Labor <em>(₱ / day, optional)</em></label>
+            <input type="number" id="price-labor" min="0" step="1" value="0">
+          </div>
+        </div>
+        <div class="field">
+          <label for="cost-days">Labor Days</label>
+          <input type="number" id="cost-days" min="0" step="1" value="1">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-peso-sign"></i> Compute Total</button>
+          <button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+        </div>
+      </form>
+
+      <!-- ===== CONVERTER ===== -->
+      <form class="calc-form" id="form-converter" data-module="converter" hidden>
+        <div class="form-head">
+          <h3><i class="fa-solid fa-ruler"></i> Measurement Converter</h3>
+          <p>Meters↔feet, inches↔cm, and area between square meters and square feet.</p>
+        </div>
+        <div class="field">
+          <label for="conv-length">Length</label>
+          <div class="conv-row">
+            <div class="conv-cell">
+              <input type="number" id="conv-length-m" min="0" step="0.01" value="1" placeholder="Meter">
+              <span class="conv-unit">m</span>
+            </div>
+            <i class="fa-solid fa-right-left conv-swap"></i>
+            <div class="conv-cell">
+              <input type="number" id="conv-length-ft" min="0" step="0.01" placeholder="Feet">
+              <span class="conv-unit">ft</span>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="conv-inch-cm">Small Length</label>
+          <div class="conv-row">
+            <div class="conv-cell">
+              <input type="number" id="conv-inch" min="0" step="0.01" value="12" placeholder="Inches">
+              <span class="conv-unit">in</span>
+            </div>
+            <i class="fa-solid fa-right-left conv-swap"></i>
+            <div class="conv-cell">
+              <input type="number" id="conv-cm" min="0" step="0.01" placeholder="Centimeters">
+              <span class="conv-unit">cm</span>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="conv-area-sqm">Area</label>
+          <div class="conv-row">
+            <div class="conv-cell">
+              <input type="number" id="conv-area-sqm" min="0" step="0.01" value="1" placeholder="Square meters">
+              <span class="conv-unit">sqm</span>
+            </div>
+            <i class="fa-solid fa-right-left conv-swap"></i>
+            <div class="conv-cell">
+              <input type="number" id="conv-area-sqft" min="0" step="0.01" placeholder="Square feet">
+              <span class="conv-unit">sqft</span>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <!-- ===== RESULT PANEL ===== -->
+      <div class="result-panel" id="result-panel" hidden>
+        <div class="result-head">
+          <div>
+            <h3 id="result-title">Results</h3>
+            <p id="result-sub"></p>
+          </div>
+          <button class="btn btn-icon" id="result-close" type="button" aria-label="Close results"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="result-body" id="result-body">
+          <!-- rows injected by JS -->
+        </div>
+        <div class="result-actions">
+          <button class="btn btn-primary" id="btn-save" type="button"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+          <button class="btn btn-outline" id="btn-print" type="button"><i class="fa-solid fa-print"></i> Print</button>
+          <button class="btn btn-outline" id="btn-pdf" type="button"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ VIEW: SAVED ============ -->
+  <section class="view" id="view-saved" aria-label="Saved estimates">
+    <div class="saved-head">
+      <h2><i class="fa-solid fa-clock-rotate-left"></i> Saved Estimates</h2>
+      <button class="btn btn-ghost" id="btn-clear-saved" type="button"><i class="fa-solid fa-trash-can"></i> Clear All</button>
+    </div>
+    <div class="saved-list" id="saved-list">
+      <!-- injected by JS -->
+    </div>
+  </section>
+
+  <!-- ============ VIEW: ABOUT ============ -->
+  <section class="view" id="view-about" aria-label="About">
+    <div class="about-card">
+      <h2><i class="fa-solid fa-circle-info"></i> About BuildCalc</h2>
+      <p>BuildCalc is an all-in-one construction material calculator for workers, engineers, contractors, and homeowners. Enter your project measurements, get instant material estimates, and reduce waste before buying supplies.</p>
+      <div class="about-grid">
+        <div class="about-item"><h4>Offline Ready</h4><p>Everything runs in your browser. No internet required after first load.</p></div>
+        <div class="about-item"><h4>Saved On Device</h4><p>Your estimates are stored locally on your phone or computer — nothing leaves your device.</p></div>
+        <div class="about-item"><h4>Filipino Terms</h4><p>Anilyo, semento, buhangin, graba, pako, pintura — labeled where you expect them.</p></div>
+        <div class="about-item"><h4>Estimates Only</h4><p>Always confirm final quantities with your supplier and engineer before ordering.</p></div>
+      </div>
+      <p class="about-foot">Material weights, coverage rates, and wasteage factors are industry-typical defaults. Adjust for your specific project conditions.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="app-footer">
+  <span>BuildCalc · Estimate materials, cut waste.</span>
+</footer>
+
+<!-- printable report (hidden on screen, shown by @media print) -->
+<div class="print-report" id="print-report" aria-hidden="true"></div>
+
+<script src="assets/jspdf.umd.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
