@@ -36,7 +36,7 @@
     <div class="hero">
       <p class="hero-kicker">Para sa mga kontratista at manggagawa</p>
       <h2>Estimate your construction materials quickly and accurately</h2>
-      <p class="hero-sub">Steel, concrete, formwork, paint, tiles and nails — organized into full project sheets with one purchasing summary.</p>
+      <p class="hero-sub">Fajardo-referenced steel, concrete, CHB, plaster, forms, paint, tiles and nails — organized into full project sheets with one purchasing summary.</p>
       <button class="btn btn-primary btn-lg" id="btn-start" type="button">
         <i class="fa-solid fa-calculator"></i> Start Calculating
       </button>
@@ -145,7 +145,7 @@
             <div class="field"><label for="steel-wire-ties">Wire Pieces per Intersection</label><input type="number" id="steel-wire-ties" min="1" step="1" value="1" required></div>
             <div class="field"><label for="steel-wire-waste">Tie Wire Extra Allowance <em>(%)</em></label><input type="number" id="steel-wire-waste" min="0" max="100" step="1" value="10" required></div>
           </div>
-          <div class="field"><label for="steel-wire-grams">Wire Unit Weight <em>(g/m, #16 typical ~15.8)</em></label><input type="number" id="steel-wire-grams" min="0.1" step="0.1" value="15.8" required></div>
+          <div class="field"><label for="steel-wire-grams">Wire Unit Weight <em>(g/m, Fajardo: 53m/kg ≈ 18.87)</em></label><input type="number" id="steel-wire-grams" min="0.1" step="0.1" value="18.87" required></div>
           <p class="form-note">These are editable material allowances, not automatic compliance with structural tie-hook specifications.</p>
         </div>
         <div class="form-actions">
@@ -203,6 +203,7 @@
           <div class="field checkbox-field"><label><input type="checkbox" id="paint-primer" checked> Include one primer coat</label></div>
         </div>
         <div class="field-row">
+          <div class="field"><label for="paint-surface">Coverage Preset (Fajardo book p.312)</label><select id="paint-surface"><option value="manual" selected>Supplier / manual coverage</option><option value="rough">Coarse/Rough — 30 m² per 4 L</option><option value="medium">Fine/Coarse — 35 m² per 4 L</option><option value="smooth">Smooth — 40 m² per 4 L</option></select><p class="form-note">Presets apply to one coat, not all coats combined. Check primer and product instructions.</p></div>
           <div class="field"><label for="paint-coverage">Finish Coverage <em>(m²/L/coat)</em></label><input type="number" id="paint-coverage" min="0.1" step="0.1" value="12" required></div>
           <div class="field"><label for="paint-primer-coverage">Primer Coverage <em>(m²/L/coat)</em></label><input type="number" id="paint-primer-coverage" min="0.1" step="0.1" value="8" required></div>
         </div>
@@ -336,6 +337,7 @@
           <div class="field"><label for="conc-mix">Nominal Concrete Class</label><select id="conc-mix"><option value="AA">AA — 1:1.5:3</option><option value="A" selected>A — 1:2:4</option><option value="B">B — 1:2.5:5</option><option value="C">C — 1:3:6</option></select></div>
           <div class="field"><label for="conc-count">Number of Identical Elements</label><input type="number" id="conc-count" min="1" step="1" value="1" required></div>
         </div>
+        <div class="field"><label for="conc-bag">Cement Bag Size (Fajardo Table 1-2)</label><select id="conc-bag"><option value="40" selected>40 kg</option><option value="50">50 kg</option></select></div>
         <div class="field"><label for="conc-waste">Material Allowance</label><select id="conc-waste"><option value="0">0%</option><option value="5" selected>5%</option><option value="10">10%</option></select></div>
         <div class="form-actions">
           <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button>
@@ -344,11 +346,58 @@
       </form>
 
 
+
+      <!-- ===== CHB WALL: Fajardo Tables 2-2/2-3 ===== -->
+      <form class="calc-form" id="form-chb" data-module="chb" hidden>
+        <div class="form-head"><h3><i class="fa-solid fa-border-all"></i> CHB Masonry / Pader</h3>
+          <p>Fajardo Table 2-2: CHB pieces and block-laying mortar using wall area. Printed book page 53.</p></div>
+        <div class="field-row"><div class="field"><label for="chb-length">Wall Length (m)</label><input id="chb-length" type="number" min="0.01" step="0.01" value="4" required></div>
+          <div class="field"><label for="chb-height">Wall Height (m)</label><input id="chb-height" type="number" min="0.01" step="0.01" value="3" required></div></div>
+        <div class="field-row"><div class="field"><label for="chb-count">Identical Walls</label><input id="chb-count" type="number" min="1" step="1" value="1" required></div>
+          <div class="field"><label for="chb-openings">Openings per Wall (m²)</label><input id="chb-openings" type="number" min="0" step="0.01" value="0" required></div></div>
+        <div class="field-row"><div class="field"><label for="chb-thickness">CHB Thickness (20×40 cm face)</label><select id="chb-thickness"><option value="10" selected>10 cm (4 inch)</option><option value="15">15 cm (6 inch)</option><option value="20">20 cm (8 inch)</option></select></div>
+          <div class="field"><label for="chb-mix">Laying Mortar Class</label><select id="chb-mix"><option value="A">A — 1:2</option><option value="B" selected>B — 1:3</option><option value="C">C — 1:4</option><option value="D">D — 1:5</option></select></div></div>
+        <div class="field"><label for="chb-waste">Extra Material Allowance (%)</label><input id="chb-waste" type="number" min="0" max="100" step="1" value="0" required></div>
+        <p class="form-note">CHB count and laying mortar only (40-kg cement bags). Reinforcement, core fill, footing, plaster and lintels are separate estimates.</p>
+        <div class="form-actions"><button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button><button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+      </form>
+
+      <!-- ===== PLASTER: Fajardo Table 2-4 ===== -->
+      <form class="calc-form" id="form-plaster" data-module="plaster" hidden>
+        <div class="form-head"><h3><i class="fa-solid fa-paint-roller"></i> Palitada / Plastering</h3><p>Fajardo Table 2-4: cement and sand per square meter of plaster. Printed book page 56.</p></div>
+        <div class="field-row"><div class="field"><label for="plaster-length">Wall Length (m)</label><input id="plaster-length" type="number" min="0.01" step="0.01" value="4" required></div>
+          <div class="field"><label for="plaster-height">Wall Height (m)</label><input id="plaster-height" type="number" min="0.01" step="0.01" value="3" required></div></div>
+        <div class="field-row"><div class="field"><label for="plaster-count">Identical Walls</label><input id="plaster-count" type="number" min="1" step="1" value="1" required></div>
+          <div class="field"><label for="plaster-faces">Faces to Plaster</label><select id="plaster-faces"><option value="1">1 side</option><option value="2" selected>2 sides</option></select></div></div>
+        <div class="field"><label for="plaster-openings">Openings per Wall, per Face (m²)</label><input id="plaster-openings" type="number" min="0" step="0.01" value="0" required></div>
+        <div class="field-row"><div class="field"><label for="plaster-mix">Mortar Class</label><select id="plaster-mix"><option value="A">A — 1:2</option><option value="B" selected>B — 1:3</option><option value="C">C — 1:4</option><option value="D">D — 1:5</option></select></div>
+          <div class="field"><label for="plaster-thickness">Plaster Thickness</label><select id="plaster-thickness"><option value="8">8 mm</option><option value="12">12 mm</option><option value="16" selected>16 mm</option><option value="20">20 mm</option><option value="25">25 mm</option></select></div></div>
+        <div class="field"><label for="plaster-waste">Extra Material Allowance (%)</label><input id="plaster-waste" type="number" min="0" max="100" step="1" value="0" required></div>
+        <p class="form-note">Separate from CHB laying mortar. Area counts both faces when selected. 40-kg cement basis.</p>
+        <div class="form-actions"><button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button><button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+      </form>
+
+      <!-- ===== LUMBER BOARD FEET ===== -->
+      <form class="calc-form" id="form-timber" data-module="lumber" hidden>
+        <div class="form-head"><h3><i class="fa-solid fa-tree"></i> Coco Lumber / Board Foot</h3><p>Fajardo Chapter 4 (book p.151): stock material estimation by cut lengths and board feet, separate from formwork.</p></div>
+        <div class="field"><label for="lumber-spec">Coco Lumber Stock Dimension (inches × feet)</label><select id="lumber-spec">
+          <option value="2x2x8">2×2×8 ft</option><option value="2x2x10">2×2×10 ft</option><option value="2x2x12">2×2×12 ft</option>
+          <option value="2x3x8">2×3×8 ft</option><option value="2x3x10" selected>2×3×10 ft</option><option value="2x3x12">2×3×12 ft</option>
+          <option value="2x4x8">2×4×8 ft</option><option value="2x4x10">2×4×10 ft</option><option value="2x4x12">2×4×12 ft</option>
+          <option value="3x3x10">3×3×10 ft</option><option value="3x3x12">3×3×12 ft</option>
+        </select></div>
+        <div class="field-row"><div class="field"><label for="lumber-length">Required Length per Member (m)</label><input type="number" id="lumber-length" min="0.01" step="0.01" value="2" required></div>
+          <div class="field"><label for="lumber-count">Number of Members</label><input type="number" id="lumber-count" min="1" step="1" value="10" required></div></div>
+        <div class="field"><label for="lumber-waste">Extra Cut Members (%)</label><input type="number" id="lumber-waste" min="0" max="100" step="1" value="0" required></div>
+        <p class="form-note">Lumber material take-off only, not a structural joist/brace design. A single cut must fit inside the selected stock length.</p>
+        <div class="form-actions"><button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button><button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+      </form>
+
       <!-- ===== FORMWORK / PORMA ===== -->
       <form class="calc-form" id="form-formwork" data-module="formwork" hidden>
         <div class="form-head">
           <h3><i class="fa-solid fa-layer-group"></i> Porma / Formwork Calculator</h3>
-          <p>Phenolic plywood, coco lumber, pako, and diagonal braces. Add quantities to a project section's detailed sheet.</p>
+          <p>Fajardo-based column/beam quantity formulas and lumber board-foot factors; site-specific slab joists, pako, and slant braces. Add results to Project Sheets.</p>
         </div>
         <div class="field">
           <label for="form-type">Porma para saan?</label>
@@ -357,8 +406,8 @@
             <option value="beam">Biga / Beam — bottom + two sides</option>
             <option value="slab" selected>Slab / Palapag — underside</option>
             <option value="footing">Pundasyon — four sides</option>
-            <option value="scaffolding">Scaffold — platform take-off only</option>
-            <option value="area">Per Square Meter — plywood area only</option>
+            <option value="scaffolding">Scaffolding — floor staging (Fajardo Table 5-3)</option>
+            <option value="area">Per Square Meter — plywood form area</option>
           </select>
         </div>
         <div id="form-dimensions">
@@ -371,47 +420,48 @@
         <div class="field" id="form-area-group" hidden>
           <label for="form-area">Formwork Area per Element <em>m²</em></label>
           <input id="form-area" type="number" min="0.01" step="0.01" value="2" required>
-          <p class="form-note">Only plywood and nails will be counted here. Enter actual dimensions for framing and diagonal braces.</p>
+          <p class="form-note">Direct plywood form area + nails only. Select a geometry type for framing. Separate scaffold staging has no automatic plywood.</p>
         </div>
         <div class="field"><label for="form-count">Number of Identical Elements</label><input id="form-count" type="number" min="1" step="1" value="1" required></div>
         <div class="steel-detail">
           <h4>Phenolic Plywood / Pynolic</h4>
           <div class="field-row">
             <div class="field"><label for="form-plywood">Phenolic Thickness</label><select id="form-plywood"><option value="1/2" selected>1/2 inch (12 mm)</option><option value="3/4">3/4 inch (18 mm)</option></select></div>
-            <div class="field"><label for="form-coverage">Effective Area per Sheet <em>m²</em></label><input id="form-coverage" type="number" min="0.01" max="10" step="0.0001" value="2.44" required></div>
+            <div class="field"><label for="form-coverage">Effective Area per Sheet <em>m²</em></label><select id="form-coverage-preset"><option value="2.88" selected>Fajardo: 2.88 m² (1.20×2.40m)</option><option value="2.44">Your Site Rule: 2.44 m²</option><option value="2.9768">Modern 4×8 Gross: 2.9768 m²</option><option value="custom">Custom area</option></select><input id="form-coverage" type="number" min="0.01" max="10" step="0.0001" value="2.88" required></div>
           </div>
           <div class="field"><label for="form-plywood-waste">Plywood Cutting / Waste Allowance <em>%</em></label><input id="form-plywood-waste" type="number" min="0" max="100" step="1" value="0" required></div>
-          <p class="form-note"><strong>Rule:</strong> Sheets = round UP (total covered area ÷ effective sheet area). 2.44 m² → 1 sheet; 2.5 m² → 2 sheets. Standard 4×8 ft plywood is 1.22 m × 2.44 m = 2.9768 m² gross; this input uses your preferred 2.44 m² effective coverage unless changed. Actual cut layout matters.</p>
+          <p class="form-note"><strong>Fajardo reference:</strong> 1.20×2.40m plywood = 2.88m²/sheet. Your original 2.44m² rule is still selectable: under that rule, 2.44m² → 1 sheet and 2.5m² → 2 sheets. Modern 1.22×2.44m is 2.9768m² gross. Effective cut layouts may require more sheets.</p>
         </div>
         <div class="steel-detail" id="form-framing-group">
-          <h4>Coco Lumber / Kahoy at Slant Braces</h4>
+          <h4>Coco Lumber / Kahoy at Slant Braces</h4><p class="form-note">Column/beam frames: Fajardo 12mm plywood board-foot factors; 3/4 inch phenolic uses conservative 12mm proxy. Non-tabulated 2x4 and 3x3 sizes use extrapolation. Slab and footing joists use site-entered spacing. Scaffolding uses separate Fajardo flooring staging board-foot factors.</p>
           <div class="field-row">
             <div class="field"><label for="form-lumber">Framing Coco Lumber <em>in × in × ft</em></label>
               <select id="form-lumber"><option value="2x2x8">2×2×8</option><option value="2x2x10">2×2×10</option><option value="2x2x12">2×2×12</option><option value="2x3x8">2×3×8</option><option value="2x3x10" selected>2×3×10</option><option value="2x3x12">2×3×12</option><option value="2x4x8">2×4×8</option><option value="2x4x10">2×4×10</option><option value="2x4x12">2×4×12</option><option value="3x3x10">3×3×10</option><option value="3x3x12">3×3×12</option></select></div>
             <div class="field"><label for="form-brace-lumber">Brace / Slant Coco Lumber</label>
               <select id="form-brace-lumber"><option value="2x2x8">2×2×8</option><option value="2x2x10" selected>2×2×10</option><option value="2x2x12">2×2×12</option><option value="2x3x8">2×3×8</option><option value="2x3x10">2×3×10</option><option value="2x3x12">2×3×12</option><option value="2x4x8">2×4×8</option><option value="2x4x10">2×4×10</option><option value="2x4x12">2×4×12</option><option value="3x3x10">3×3×10</option><option value="3x3x12">3×3×12</option></select></div>
           </div>
-          <div class="field-row">
-            <div class="field"><label for="form-joist-spacing">Frame / Joist Spacing <em>cm (slab default 40)</em></label><input id="form-joist-spacing" type="number" min="10" max="500" step="1" value="40" required></div>
-            <div class="field"><label for="form-brace-spacing">Slant Brace Interval <em>m (default 2)</em></label><input id="form-brace-spacing" type="number" min="0.1" max="20" step="0.1" value="2" required></div>
+          <div class="field-row" id="form-spacing-row">
+            <div class="field" id="form-joist-box"><label for="form-joist-spacing">Frame / Joist Spacing <em>cm (slab default 40)</em></label><input id="form-joist-spacing" type="number" min="10" max="500" step="1" value="40" required></div>
+            <div class="field" id="form-brace-spacing-box"><label for="form-brace-spacing">Slant Brace Interval <em>m (default 2)</em></label><input id="form-brace-spacing" type="number" min="0.1" max="20" step="0.1" value="2" required></div>
           </div>
-          <div class="field-row">
+          <div class="field-row" id="form-brace-length-row">
             <div class="field"><label for="form-brace-length">Slant Brace Cut Length <em>m/brace</em></label><input id="form-brace-length" type="number" min="0.1" max="20" step="0.1" value="1.5" required></div>
             <div class="field"><label for="form-braces-per">Braces per Interval</label><input id="form-braces-per" type="number" min="1" max="12" step="1" value="1" required></div>
           </div>
-          <p class="form-note">For slab: joists every 40 cm across its width, plus perimeter runners. For braces: one station every 2 m along the applicable run, with a configurable brace quantity and cut length. Site layout and safe bearing/support must be engineered.</p>
+          <p class="form-note">Columns/beams follow Fajardo sheet-based frame factors (not joist spacing input). Slab: joists every 40 cm across the width. Your separate slants: one station per 2m of applicable run, not a Fajardo bracing design. Scaffold staging uses the Fajardo flooring allowance; extra braces are not double-counted.</p>
         </div>
         <div class="steel-detail">
           <h4>Pako para sa Porma</h4>
+          <div class="field"><label for="form-nail-method">Nail Estimation Method</label><select id="form-nail-method"><option value="fajardo" selected>Fajardo: 0.055 kg per plywood sheet (1-inch finishing)</option><option value="site">Site allowance: editable nails per m²</option></select></div>
           <div class="field-row">
-            <div class="field"><label for="form-nail-size">Nail Size / Kind</label><select id="form-nail-size"><option value="1">1 inch</option><option value="1.5">1½ inch</option><option value="2" selected>2 inch</option><option value="3">3 inch</option><option value="3-concrete">3 inch concrete nail</option></select></div>
-            <div class="field"><label for="form-nail-gram">Individual Nail Weight <em>g/nail</em></label><input id="form-nail-gram" type="number" min="0.01" step="0.1" value="2.8" required></div>
+            <div class="field"><label for="form-nail-size">Nail Size / Kind</label><select id="form-nail-size"><option value="1" selected>1 inch (2d finishing)</option><option value="1.5">1½ inch</option><option value="2">2 inch</option><option value="3">3 inch</option><option value="3-concrete">3 inch concrete nail</option></select></div>
+            <div class="field"><label for="form-nail-gram">Individual Nail Weight <em>g/nail</em></label><input id="form-nail-gram" type="number" min="0.01" step="0.1" value="0.9" required></div>
           </div>
-          <div class="field-row">
+          <div class="field-row" id="form-manual-nails-row">
             <div class="field"><label for="form-nails-per">Nails per Formwork Area <em>pcs/m²</em></label><input id="form-nails-per" type="number" min="0" max="1000" step="1" value="20" required></div>
             <div class="field"><label for="form-nail-waste">Extra Nails <em>%</em></label><input id="form-nail-waste" type="number" min="0" max="100" step="1" value="10" required></div>
           </div>
-          <p class="form-note">Nail rate and mass are adjustable estimating assumptions; confirm actual supplier product and site fastening schedule.</p>
+          <p class="form-note">Fajardo Table 8-10 gives 0.055kg per 4×8 plywood sheet for 2d finishing nails in a particular fixing pattern. All other sizes use manual site nail rate; concrete nails are NOT covered by the Fajardo plywood rate.</p>
         </div>
         <div class="form-actions">
           <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate Formwork Materials</button>
@@ -428,8 +478,10 @@
         </div>
         <div class="field"><label for="cost-project-name">Project / Estimate Name <em>(optional)</em></label><input type="text" id="cost-project-name" maxlength="100" placeholder="e.g., Cainta renovation"></div>
         <div class="cost-grid">
+          <div class="field"><label for="price-chb">CHB Block <em>(₱ / piece)</em></label><input type="number" id="price-chb" min="0" step="0.01" value="0" required></div>
+          <div class="field"><label for="price-cement50">Cement (50 kg) <em>(₱ / bag)</em></label><input type="number" id="price-cement50" min="0" step="0.01" value="0" required></div>
           <div class="field">
-            <label for="price-cement">Cement <em>(₱ / bag)</em></label>
+            <label for="price-cement">Cement 40 kg <em>(₱ / bag)</em></label>
             <input type="number" id="price-cement" min="0" step="1" value="250" required>
           </div>
           <div class="field">
@@ -572,7 +624,7 @@
         <div class="field"><label for="project-name">Project Name</label><input id="project-name" type="text" maxlength="100" placeholder="House Construction – Cainta"></div>
       </div>
       <div class="sheet-toolbar"><button class="btn btn-outline" id="project-rename" type="button">Save Project Name</button><button class="btn btn-ghost" id="project-delete" type="button">Delete This Project</button><button class="btn btn-outline" id="project-pricing" type="button">Edit Material Prices</button></div>
-      <div id="project-empty" class="empty-state" hidden><i class="fa-solid fa-clipboard-list"></i><h4>No items in this project yet</h4><p>Calculate steel, formwork, concrete, paint, tiles or nails, then click <b>Add to Project Sheet</b>.</p></div>
+      <div id="project-empty" class="empty-state" hidden><i class="fa-solid fa-clipboard-list"></i><h4>No items in this project yet</h4><p>Calculate steel, formwork, concrete, CHB, plaster, coco lumber, paint, tiles or nails, then click <b>Add to Project Sheet</b>.</p></div>
       <div id="project-details" class="sheet-details"></div>
       <div class="sheet-summary" id="project-summary"><h3>Consolidated Material Summary</h3><div id="project-summary-lines"></div><div id="project-summary-total"></div></div>
       <p class="form-note">Quantities are preliminary. Stock-bar counts are optimized across cuts with matching role, diameter and stock length; cutting layouts, splicing positions, hooks and bend deductions must be checked by a qualified engineer/fabricator. Prices are user-supplied.</p>
@@ -606,7 +658,7 @@
         <div class="about-item"><h4>Filipino Terms</h4><p>Anilyo, semento, buhangin, graba, pako, pintura — labeled where you expect them.</p></div>
         <div class="about-item"><h4>Estimates Only</h4><p>Always confirm final quantities with your supplier and engineer before ordering.</p></div>
       </div>
-      <p class="about-foot">Quantity take-offs only—not engineered structural designs. Concrete factors are preliminary 40-kg-bag table estimates inspired by Max Fajardo's Simplified Construction Estimate; verify editions and project mix requirements. Tile adhesive default is an approximate 5 m² per 25-kg bag; check your supplier technical sheet. All rates, packaging and wastage are editable assumptions.</p>
+      <p class="about-foot">Quantity take-offs only—not engineered structural designs. Concrete 40/50-kg cement factors, CHB laying-mortar and plaster factors, and paint surface texture presets are reference quantity tables transcribed from the uploaded Max Fajardo book; verify actual plans, materials and mix requirements. Detailed reference and limitations are in README-FAJARDO-PDF-v6.md. Tile adhesive default is an approximate 5 m² per 25-kg bag; check your supplier technical sheet. All rates, packaging and wastage are editable assumptions.</p>
     </div>
   </section>
 

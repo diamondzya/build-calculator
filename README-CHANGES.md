@@ -1,3 +1,24 @@
+# BuildCalc v6 — Max Fajardo PDF Integration
+
+**Current release documentation: `README-FAJARDO-PDF-v6.md`.** Original source is the user-uploaded scanned *Simplified Construction Estimate*. The original book PDF is not distributed with this ZIP.
+
+- New CHB/Pader calculator from Table 2-2, class A–D laying mortar for 10/15/20cm blocks, including 40-kg cement and sand.
+- New Palitada/Plastering calculator from Table 2-4, class A–D at 8/12/16/20/25mm, both faces supported.
+- Updated concrete Table 1-2 with selectable 40/50kg cement factors per mix class AA/A/B/C.
+- Paint texture presets (rough/medium/smooth) from printed p.312, with manual manufacturer coverage retained.
+- Standalone Coco Lumber/Board Foot calculator from Chapter 4 formula and stock purchase cutting approximation.
+- No. 16 GI tie-wire reference updated to 53m/kg from Chapter 3 examples, adjustable by user.
+- Integrated new lines into Cost, Project Sheets, PDF, backup and consolidated BOQ; cement bag sizes separate and aggregated before purchasing roundup.
+- Prior steel hooks and splices, porma, tile, nail calculators, and user preferences remain. Old saved quantities are not automatically recalculated.
+
+---
+
+# BuildCalc v5 — Updated Fajardo Formwork
+
+**For the current formwork calculation basis, see `README-FAJARDO.md`.** Earlier v4 instructions below are retained only as historical documentation; v5 supersedes their formulas and defaults.
+
+---
+
 # BuildCalc v4 — Porma / Formwork Quantity Take-off
 
 Offline HTML/CSS/JavaScript material estimating system. Preserves and extends the v3 project sheets, rebar, tie-wire, hooks, splices, concrete, nails, paint and tiles. Open `index.html` after extracting **all** files. No installation or network connection required.

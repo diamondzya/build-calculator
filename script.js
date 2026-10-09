@@ -9,9 +9,12 @@
 /* ---------- module metadata (nav + cards) ---------- */
 var MODULES = [
   { id: "steel",     title: "Anilyo / Steel",   fil: "Rebar",       icon: "fa-ruler-combined", desc: "Bars, length & weight for footing, column, beam, slab, stairs, fence." },
+  { id: "chb", title: "CHB / Pader", fil: "Masonry", icon: "fa-border-all", desc: "Fajardo Table 2-2: hollow blocks, laying cement and sand." },
+  { id: "plaster", title: "Palitada", fil: "Plaster", icon: "fa-trowel-bricks", desc: "Fajardo Table 2-4: plaster mortar by thickness and mix class." },
   { id: "paint",     title: "Pintura",          fil: "Paint",       icon: "fa-paint-roller",   desc: "Liters, gallons & primer for interior, exterior, waterproofing." },
   { id: "tile",      title: "Tiles",            fil: "Tiles",       icon: "fa-border-all",     desc: "Tile count, boxes, adhesive & grout for your floor area." },
   { id: "nail",      title: "Pako",             fil: "Nails",       icon: "fa-hammer",         desc: "Nail quantity & recommended size for roofing, framing, forms." },
+  { id: "lumber", title: "Coco Lumber", fil: "Timber", icon: "fa-tree", desc: "Fajardo board-foot and cut-stock purchasing for timber." },
   { id: "formwork",  title: "Porma / Formwork", fil: "Forms", icon: "fa-layer-group", desc: "Phenolic plywood, cocolumber 2×2/2×3/2×4, slant braces every 2m & nails." },
   { id: "concrete",  title: "Semento/Graba",    fil: "Concrete",    icon: "fa-trowel-bricks",  desc: "Cement bags, buhangin, graba & water for your concrete pour." },
   { id: "cost",      title: "Cost",             fil: "Presyo",      icon: "fa-peso-sign",      desc: "Total estimated cost from current prices and saved quantities." },
@@ -251,7 +254,7 @@ function resultRows(resultTitle, sub, rows, note, totals) {
   showResult(resultTitle, sub, rows, totals || []);
   currentResult.note = note;
   $('#result-note').textContent = note || '';
-  $('#btn-add-project').hidden = !['steel','concrete','paint','tile','nail','formwork'].includes(currentModule);
+  $('#btn-add-project').hidden = !['steel','concrete','chb','plaster','lumber','paint','tile','nail','formwork'].includes(currentModule);
   $('#project-item-label').hidden = $('#btn-add-project').hidden;
   currentResult.inputValues = captureInputs($('.calc-form[data-module="' + currentModule + '"]'));
 }
@@ -357,6 +360,8 @@ function runPaint(silent) {
     if (r.primerCans) rows.push({ label: 'Primer', fil: 'One coat', value: fmt(r.primerLiters, 2) + ' L / ' + r.primerCans + ' cans' });
     storeQuantities('paint', { cans: r.cans, primerCans: r.primerCans, canLiters: r.canLiters, type: field('paint-type') });
     resultRows('Paint Requirement', field('paint-type') + ' · ' + field('paint-coats') + ' coat(s)', rows, r.note);
+    r.source = field('paint-surface') === 'manual' ? 'Supplier coverage (manually entered)' : 'Fajardo p.312 (' + field('paint-surface') + ' texture)';
+    r.note += ' Method: ' + r.source + '.';
     r.type = field('paint-type'); currentResult.quantity = r; currentResult.section = 'paint';
     return r;
   }, silent);
@@ -401,12 +406,12 @@ function runConcrete(silent) {
   return safeCompute(function () {
     var r = BuildCalcEngine.concrete({ project: field('conc-project'), length: field('conc-length'),
       width: field('conc-width'), height: field('conc-height'),
-      count: field('conc-count'), mixClass: field('conc-mix'), wastePct: field('conc-waste'), belowFloorM: field('conc-below') });
-    storeQuantities('concrete', { bags: r.bags, sand: r.sand, gravel: r.gravel, volume: r.volume });
+      count: field('conc-count'), mixClass: field('conc-mix'), bagKg: field('conc-bag'), wastePct: field('conc-waste'), belowFloorM: field('conc-below') });
+    storeQuantities('concrete', { bags: r.bags, bagKg:r.bagKg, sand: r.sand, gravel: r.gravel, volume: r.volume });
     resultRows('Concrete Material Take-off', field('conc-project') + ' · Class ' + r.className + ' · ' + r.ratio, [
       { label: 'Net Concrete Volume', fil: r.count + ' element(s)' + (r.belowFloor ? ' · height includes ' + fmt(r.belowFloor, 2) + ' m hukay' : ''), value: fmt(r.volume, 3) + ' m³', hero: true },
       { label: 'With Material Allowance', fil: 'Basis for purchase estimate', value: fmt(r.materialVolume, 3) + ' m³' },
-      { label: 'Cement', fil: '40 kg bags', value: r.bags + ' bags' },
+      { label: 'Cement', fil: r.bagKg + ' kg bags · Fajardo Table 1-2', value: r.bags + ' bags' },
       { label: 'Sand', fil: 'Loose material estimate', value: fmt(r.sand, 3) + ' m³' },
       { label: 'Gravel', fil: 'Loose material estimate', value: fmt(r.gravel, 3) + ' m³' }
     ], r.note);
@@ -415,17 +420,74 @@ function runConcrete(silent) {
   }, silent);
 }
 
+
+function runCHB(silent) {
+  return safeCompute(function() {
+    var r = BuildCalcEngine.chb({length:field('chb-length'),height:field('chb-height'),count:field('chb-count'),openings:field('chb-openings'),thickness:field('chb-thickness'),mixClass:field('chb-mix'),wastePct:field('chb-waste')});
+    storeQuantities('chb',r);
+    resultRows('CHB / Hollow Block Take-off','Class '+r.mixClass+' mortar · 10/15/20×20×40cm Fajardo',[
+      {label:'Net Wall Area',fil:r.count+' wall(s) less opening area',value:fmt(r.area,3)+' m²'},
+      {label:'Hollow Blocks to Buy',fil:'12.5 pcs/m² + extra allowance',value:r.blocks+' pcs',hero:true},
+      {label:'Mortar Cement to Buy',fil:fmt(r.cementExactBags,3)+' bags exact · Fajardo Table 2-2',value:r.bags+' bags (40kg)'},
+      {label:'Laying Mortar Sand',fil:fmt(r.tableSandPerSqm,4)+' m³/m²',value:fmt(r.sand,3)+' m³'}
+    ],r.note);
+    currentResult.quantity=r;currentResult.section='chb';return r;
+  },silent);
+}
+function runPlaster(silent) {
+  return safeCompute(function() {
+    var r = BuildCalcEngine.plaster({length:field('plaster-length'),height:field('plaster-height'),count:field('plaster-count'),faces:field('plaster-faces'),openings:field('plaster-openings'),
+      thicknessMm:field('plaster-thickness'),mixClass:field('plaster-mix'),wastePct:field('plaster-waste')});
+    storeQuantities('plaster',r);
+    resultRows('Palitada / Plaster Take-off','Class '+r.mixClass+' · '+r.thicknessMm+' mm · Fajardo Table 2-4',[
+      {label:'Net Plaster Area',fil:r.count+' wall(s) × '+r.faces+' face(s), less openings',value:fmt(r.area,3)+' m²'},
+      {label:'Plaster Mortar Volume',fil:'Area × '+r.thicknessMm+' mm incl. allowance',value:fmt(r.mortarVolume,3)+' m³'},
+      {label:'Cement to Buy',fil:fmt(r.cementExactBags,3)+' bags exact',value:r.bags+' bags (40kg)',hero:true},
+      {label:'Plastering Sand',fil:fmt(r.tableSandPerSqm,3)+' m³/m²',value:fmt(r.sand,3)+' m³'}
+    ],r.note);
+    currentResult.quantity=r;currentResult.section='plaster';return r;
+  },silent);
+}
+
+function runLumber(silent) {
+  return safeCompute(function() {
+    var r=BuildCalcEngine.lumber({spec:field('lumber-spec'),memberLengthM:field('lumber-length'),count:field('lumber-count'),wastePct:field('lumber-waste')});
+    storeQuantities('lumber',r);
+    resultRows('Coco Lumber / Board Foot Take-off',r.spec+' · '+r.count+' members',[
+      {label:'Required Members',fil:fmt(r.memberLengthM,3)+' m each',value:r.count+' cuts'},
+      {label:'Total Net Lumber',fil:'Fajardo board-foot formula',value:fmt(r.boardFeetNet,3)+' bd-ft'},
+      {label:'Stock Length to Buy',fil:fmt(r.stockLength,3)+' m · first-fit packing',value:r.stockPieces+' stock pcs',hero:true},
+      {label:'Board Foot Purchased',fil:'Includes any offcuts and full stock pieces',value:fmt(r.boardFeetToBuy,3)+' bd-ft'}
+    ],r.note);
+    currentResult.quantity=r;currentResult.section='lumber';return r;
+  },silent);
+}
 function updateFormworkFields(autofill) {
   var type = field('form-type'), byArea = type === 'area';
   $('#form-dimensions').hidden = byArea;
   $('#form-area-group').hidden = !byArea;
   $('#form-framing-group').hidden = byArea;
+  var isStaging = type==='scaffolding';
+  $('#form-joist-box').hidden = ['column','beam','scaffolding'].includes(type);
+  $('#form-brace-spacing-box').hidden = isStaging;
+  $('#form-brace-length-row').hidden = isStaging;
+  $('#form-brace-spacing').disabled = isStaging || byArea;
+  $('#form-brace-length').disabled = isStaging || byArea;
+  $('#form-braces-per').disabled = isStaging || byArea;
+  $('#form-joist-spacing').disabled = ['column','beam','scaffolding'].includes(type) || byArea;
   $('#form-height-group').hidden = ['column','beam','footing'].indexOf(type) === -1;
   ['form-length','form-width'].forEach(function(id) { $('#'+id).disabled = byArea; });
   $('#form-height').disabled = ['column','beam','footing'].indexOf(type) === -1;
   $('#form-area').disabled = !byArea;
-  ['form-lumber','form-brace-lumber','form-joist-spacing','form-brace-spacing','form-brace-length','form-braces-per'].forEach(function(id) { $('#'+id).disabled = byArea; });
+  ['form-lumber','form-brace-lumber'].forEach(function(id) { $('#'+id).disabled = byArea; });
+  $('#form-brace-lumber').disabled = byArea || isStaging;
+  $('#form-coverage-preset').value = ['2.88','2.44','2.9768'].includes($('#form-coverage').value) ? $('#form-coverage').value : 'custom';
   if (autofill) $('#form-joist-spacing').value = type === 'slab' || type === 'scaffolding' ? '40' : '60';
+}
+function updateFormworkNails() {
+  var fajardo = field('form-nail-method')==='fajardo';
+  $('#form-manual-nails-row').hidden = fajardo;
+  $('#form-nails-per').disabled = fajardo;
 }
 function runFormwork(silent) {
   return safeCompute(function () {
@@ -435,19 +497,21 @@ function runFormwork(silent) {
       frameLumber:field('form-lumber'),braceLumber:field('form-brace-lumber'),
       framingSpacingCm:field('form-joist-spacing'),braceSpacingM:field('form-brace-spacing'),
       braceLengthM:field('form-brace-length'),bracesPerStation:field('form-braces-per'),
-      nailSize:field('form-nail-size'),nailGram:field('form-nail-gram'),nailsPerSqm:field('form-nails-per'),nailWastePct:field('form-nail-waste')});
+      nailSize:field('form-nail-size'),nailMethod:field('form-nail-method'),nailGram:field('form-nail-gram'),nailsPerSqm:field('form-nails-per'),nailWastePct:field('form-nail-waste')});
     var rows = [
-      {label:'Plywood Formwork Area',fil:r.elementCount+' element(s) · contact surface',value:fmt(r.areaSqm,3)+' m²'},
-      {label:'Adjusted Plywood Area',fil:field('form-plywood-waste')+'% entered plywood allowance',value:fmt(r.plywoodAreaSqm,3)+' m²'},
-      {label:'Phenolic Plywood to Buy',fil:r.plywoodThickness+' inch · '+fmt(r.sheetCoverageSqm,4)+' m²/sheet',value:r.plywoodSheets+' whole sheet(s)',hero:true}
+      {label:r.type==='scaffolding'?'Scaffolding Floor Area':'Plywood Formwork Area',fil:r.elementCount+' element(s) · '+(r.type==='scaffolding'?'staging basis':'contact surface'),value:fmt(r.type==='scaffolding'?r.stagingAreaSqm:r.areaSqm,3)+' m²'},
     ];
+    if(r.type!=='scaffolding') rows.push(
+      {label:'Adjusted Plywood Area',fil:field('form-plywood-waste')+'% entered plywood allowance',value:fmt(r.plywoodAreaSqm,3)+' m²'},
+      {label:'Phenolic Plywood to Buy',fil:r.plywoodThickness+' inch · '+fmt(r.sheetCoverageSqm,4)+' m²/sheet',value:r.plywoodSheets+' whole sheet(s)',hero:true});
     if (r.type !== 'area') rows.push(
-      {label:'Frame / Joist Stations',fil:fmt(r.framingSpacingCm,1)+' cm spacing (station count per element)',value:r.framingStations+' stations'},
-      {label:'Coco Lumber — Frame',fil:r.frameLumber.replace(/x/g,'×')+' (inch × inch × feet)',value:r.framingBars+' pcs'},
-      {label:'Slant Braces / Palikpik',fil:fmt(r.braceSpacingM,2)+' m intervals × '+fmt(r.braceLengthM,2)+' m cut',value:r.braceCount+' braces'},
-      {label:'Coco Lumber — Braces',fil:r.braceLumber.replace(/x/g,'×')+' (inch × inch × feet)',value:r.braceBars+' pcs'},
-      {label:'Long-Member Cut Breaks',fil:'Cutting estimate only; connections need approved details',value:r.woodJoints+' breaks'});
-    rows.push({label:'Pako / Fasteners',fil:(r.nailSize === '3-concrete' ? '3-inch concrete nail' : r.nailSize+' inch')+' · '+fmt(Number(field('form-nails-per')),1)+' pcs/m²',value:r.nailCount+' nails'},
+      {label:'Estimating Basis',fil:r.factorOrigin||'Verified Fajardo factor where available',value:r.frameMethod||'Per-area take-off'},
+      {label:'Frame / Joist Stations',fil:fmt(r.framingSpacingCm,1)+' cm spacing; only for slab and footing',value:r.framingStations+' stations'},
+      {label:'Framing / Staging Lumber',fil:r.frameLumber.replace(/x/g,'×')+' · '+fmt(r.framingBoardFeet,2)+' board feet required'+(r.frameFactor?' · '+fmt(r.frameFactor,2)+' BF factor':''),value:r.framingBars+' pcs'},
+      {label:'Slant Braces / Palikpik',fil:r.type==='scaffolding'?'Allowance included in staging factor':fmt(r.braceSpacingM,2)+' m intervals × '+fmt(r.braceLengthM,2)+' m cut',value:r.braceCount+' braces'},
+      {label:'Coco Lumber — Braces',fil:r.type==='scaffolding'?'No second lumber brace allowance':r.braceLumber.replace(/x/g,'×')+' (inch × inch × feet)',value:r.braceBars+' pcs'},
+      {label:'Long-Member Cut Breaks',fil:'Site-layout cuts only; Fajardo framing is board-foot conversion',value:r.woodJoints+' breaks'});
+    rows.push({label:'Pako / Fasteners',fil:r.nailMethod==='fajardo'?'Fajardo Table 8-10 · 0.055kg per plywood sheet (2d finishing)':(r.nailSize === '3-concrete' ? '3-inch concrete nail' : r.nailSize+' inch')+' · '+fmt(Number(field('form-nails-per')),1)+' pcs/m²',value:r.nailCount+' nails'},
       {label:'Pako to Buy',fil:fmt(r.nailKg,3)+' kg exact · purchasing rounded to 0.5 kg',value:fmt(r.nailBuyKg,1)+' kg'});
     storeQuantities('formwork',r);
     resultRows('Porma / Formwork Material Take-off',r.type+' · '+r.elementCount+' element(s)',rows,r.note);
@@ -459,7 +523,7 @@ function runFormwork(silent) {
 function runCost(silent) {
   return safeCompute(function () {
     var prices = {
-      cement: priceField('cement'), steel: priceField('steel'), ties: priceField('ties'), wire: priceField('wire'),
+      chb:priceField('chb'),cement50:priceField('cement50'),cement: priceField('cement'), steel: priceField('steel'), ties: priceField('ties'), wire: priceField('wire'),
       paint: priceField('paint'), primer: priceField('primer'), tile: priceField('tile'),
       adhesive: priceField('adhesive'), grout: priceField('grout'), nails: priceField('nails'),
       sand: priceField('sand'), gravel: priceField('gravel'), labor: priceField('labor'),
@@ -740,6 +804,9 @@ function runCalc(form, silent) {
   if (m === 'tile') return runTile(silent);
   if (m === 'nail') return runNail(silent);
   if (m === 'concrete') return runConcrete(silent);
+  if (m === 'chb') return runCHB(silent);
+  if (m === 'plaster') return runPlaster(silent);
+  if (m === 'lumber') return runLumber(silent);
   if (m === 'formwork') return runFormwork(silent);
   if (m === 'cost') return runCost(silent);
 }
@@ -753,9 +820,17 @@ function wireForms() {
         if (input.id === 'conc-project') updateConcreteFields();
         if (input.id === 'tile-size') updateTileBoxDefault();
         if (input.id === 'form-type') updateFormworkFields(true);
+        if (input.id === 'form-coverage-preset' && input.value!=='custom') $('#form-coverage').value=input.value;
+        if (input.id === 'form-coverage' && input.value!==$('#form-coverage-preset').value) $('#form-coverage-preset').value='custom';
+        if (input.id === 'form-nail-method') { if(input.value==='fajardo') { $('#form-nail-size').value='1'; $('#form-nail-gram').value='0.9'; } updateFormworkNails(); }
+        if (input.id === 'form-nail-size' && input.value!=='1' && field('form-nail-method')==='fajardo') { $('#form-nail-method').value='site'; updateFormworkNails(); }
         if (input.id === 'form-nail-size') $('#form-nail-gram').value = BuildCalcEngine.constants.formNails[field('form-nail-size')];
+        if (input.id === 'paint-surface' && input.value!=='manual') {
+          var cov = BuildCalcEngine.constants.paintSurfaceGallon[input.value]/4;
+          $('#paint-coverage').value=cov; $('#paint-primer-coverage').value=cov;
+        }
         if (input.id === 'paint-type') {
-          $('#paint-coverage').value = BuildCalcEngine.constants.paint[field('paint-type')];
+          if (field('paint-surface')==='manual') $('#paint-coverage').value = BuildCalcEngine.constants.paint[field('paint-type')];
           $('#paint-primer').disabled = field('paint-type') === 'primer';
         }
         runCalc(form, true);
@@ -780,7 +855,7 @@ function wireForms() {
         updateSteelFields();
       }
       if (form.dataset.module === 'concrete') updateConcreteFields();
-      if (form.dataset.module === 'formwork') updateFormworkFields(false);
+      if (form.dataset.module === 'formwork') { updateFormworkFields(false); updateFormworkNails(); }
       if (form.dataset.module === 'paint') { $('#paint-primer').disabled = false; }
       if (form.dataset.module === 'converter') updateConverter();
       else runCalc(form, true);
@@ -788,7 +863,7 @@ function wireForms() {
   });
 }
 function exportBackup() {
-  var backup = { app: 'BuildCalc', version: 4, projects: getProjects(), activeProject: localStorage.getItem(ACTIVE_PROJECT_KEY), exportedAt: new Date().toISOString(),
+  var backup = { app: 'BuildCalc', version: 6, projects: getProjects(), activeProject: localStorage.getItem(ACTIVE_PROJECT_KEY), exportedAt: new Date().toISOString(),
     saved: getSaved(), quantities: loadJSON(QUANT_KEY, {}), prices: loadJSON(PRICE_KEY, {}) };
   var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   var url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -828,7 +903,7 @@ function importBackup(file) {
 function restorePrices() {
   var p = loadJSON(PRICE_KEY, null);
   if (!p || typeof p !== 'object') return;
-  ['wire','cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor','plywood','lumber','formnails'].forEach(function(key) {
+  ['chb','cement50','wire','cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor','plywood','lumber','formnails'].forEach(function(key) {
     if (p[key] != null && Number.isFinite(Number(p[key])) && Number(p[key]) >= 0) $('#price-' + key).value = p[key];
   });
   ['days','workers'].forEach(function(key) {
@@ -844,7 +919,7 @@ function restorePrices() {
 function init() {
   buildModuleBar();
   buildHomeCards();
-  updateFormworkFields(false);
+  updateFormworkFields(false); updateFormworkNails();
   wireForms();
   initConverter();
 

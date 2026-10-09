@@ -17,6 +17,9 @@ with sync_playwright() as p:
  page.click('.module-btn[data-module="formwork"]')
  assert page.locator('#form-formwork').is_visible()
  assert page.locator('#form-joist-spacing').input_value()=='40'
+ assert page.locator('#form-coverage').input_value()=='2.88'
+ page.select_option('#form-coverage-preset','2.44')
+ assert page.locator('#form-coverage').input_value()=='2.44'
  # 2 square meters manually means 1 plywood; 2.5 means two.
  page.select_option('#form-type','area')
  assert page.is_visible('#form-area-group') and not page.is_visible('#form-dimensions')
@@ -37,6 +40,7 @@ with sync_playwright() as p:
  page.select_option('#form-lumber','2x3x10');page.select_option('#form-brace-lumber','2x2x12')
  page.select_option('#form-nail-size','3-concrete')
  assert page.locator('#form-nail-gram').input_value()=='8.5'
+ assert page.locator('#form-nail-method').input_value()=='site'
  page.click('#form-formwork .calc-btn')
  result=page.locator('#result-body').inner_text()
  assert '8 m²' in result and '4 whole sheet' in result and '6 stations' in result and '2 braces' in result, result
@@ -45,13 +49,17 @@ with sync_playwright() as p:
  # Column, beam, footing and scaffold switch normally and are supported
  page.select_option('#form-type','column');assert page.is_visible('#form-height-group')
  page.fill('#form-length','3');page.fill('#form-width','.3');page.fill('#form-height','.4')
+ page.click('#form-formwork .calc-btn')
+ assert 'Fajardo Table 5-1' in page.locator('#result-body').inner_text()
  page.fill('#line-item-name','Poste Form C1');page.click('#btn-add-project')
  page.select_option('#form-type','beam');page.fill('#form-length','4');page.fill('#form-width','.3');page.fill('#form-height','.5')
  page.fill('#line-item-name','Beam Form B1');page.click('#btn-add-project')
  page.select_option('#form-type','footing');page.fill('#form-length','2');page.fill('#form-width','2');page.fill('#form-height','.4')
  page.fill('#line-item-name','Footing Form F1');page.click('#btn-add-project')
  page.select_option('#form-type','scaffolding');page.fill('#form-length','4');page.fill('#form-width','2')
- page.fill('#line-item-name','Scaffold Platform Takeoff');page.click('#btn-add-project')
+ page.click('#form-formwork .calc-btn')
+ assert 'Fajardo Table 5-3' in page.locator('#result-body').inner_text()
+ page.fill('#line-item-name','Scaffold Staging Takeoff');page.click('#btn-add-project')
  page.click('.nav-btn[data-view="projects"]')
  assert page.locator('.sheet-line').count()==6
  assert page.locator('.sheet-section').count()==6
@@ -81,7 +89,7 @@ with sync_playwright() as p:
  with page.expect_download() as i:page.click('#btn-export-backup')
  backup=O/'v4-formwork-backup.json';i.value.save_as(backup)
  saved=json.loads(backup.read_text())
- assert saved['version']==4 and len(saved['projects'][0]['items'])==6
+ assert saved['version']>=4 and len(saved['projects'][0]['items'])==6
  assert any(it['module']=='formwork' for it in saved['projects'][0]['items'])
  # Verify normal legacy v3 calculator is still available
  page.click('.nav-btn[data-view="calculators"]');page.click('.module-btn[data-module="steel"]')
@@ -93,6 +101,6 @@ with sync_playwright() as p:
  x=page.evaluate('document.documentElement.scrollWidth-window.innerWidth')
  assert x<=5,f'Mobile overflows horizontally by {x}px'
  assert not errors,errors
- print('PASS: Formwork browser: manual 2m²=1 sheet / 2.5m²=2, slab joists 40cm, braces 2m, all section types, materials and prices, edit, PDF, backup, prior steel calculator, mobile.')
+ print('PASS: Fajardo revision browser: manual 2m²=1 sheet / 2.5m²=2, slab joists 40cm, braces 2m, all section types, materials and prices, edit, PDF, backup, prior steel calculator, mobile.')
  print('PDF pages:',len(d),'page JS errors:',errors,'mobile overflow:',x)
  browser.close()

@@ -7,7 +7,8 @@ var SECTION_LABELS = {
   footing: '01 — Pundasyon / Footings', column: '02 — Poste / Columns', beam: '03 — Biga / Beams',
   slab: '04 — Palapag / Slabs', staircase: '05 — Hagdan / Stairs', fence: '06 — Bakod / Fences',
   scaffolding: '07 — Scaffold / Platform Forms', concrete: '08 — Concrete Work', paint: '09 — Painting',
-  tile: '10 — Tiles', nail: '11 — Fasteners', formwork: '12 — General Porma / Formwork'
+  chb: '10 — CHB / Masonry', plaster: '11 — Palitada / Plaster',
+  lumber: '12 — Coco Lumber / Timber', tile: '13 — Tiles', nail: '14 — Fasteners', formwork: '15 — General Porma / Formwork'
 };
 function uniqueId(prefix) { return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9); }
 function getProjects() {
@@ -34,7 +35,7 @@ function saveProject(project) {
 }
 function readProjectPrices() {
   var p = {};
-  ['cement','steel','ties','wire','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor','plywood','lumber','formnails'].forEach(function(k) { p[k] = priceField(k); });
+  ['chb','cement50','cement','steel','ties','wire','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor','plywood','lumber','formnails'].forEach(function(k) { p[k] = priceField(k); });
   p.days = field('cost-days'); p.workers = field('cost-workers');
   p.overheadPct = field('cost-overhead'); p.contingencyPct = field('cost-contingency');
   return p;
@@ -51,14 +52,17 @@ function lineItemDescription(item) {
   var q = item.qty;
   if (item.module === 'steel') return q.elementCount + ' element(s) · main Ø' + q.mainDiameter + ' ' + q.mainPieces + ' bars · anilyo Ø' + q.tieDiameter + ' ' + q.tiePieces + ' bars · alambre ' + fmt(q.tieWireKg, 3) + ' kg' + (q.spliceCount ? ' · ' + q.spliceCount + ' lap joint(s)' : '');
   if (item.module === 'concrete') return fmt(q.volume, 3) + ' m³ concrete · ' + q.bags + ' bags cement · ' + fmt(q.sand, 3) + ' m³ sand · ' + fmt(q.gravel, 3) + ' m³ gravel';
+  if (item.module === 'chb') return fmt(q.area,2)+' m² wall · '+q.blocks+' CHB ('+q.thicknessCm+'cm) · '+q.bags+' cement bags · '+fmt(q.sand,3)+' m³ sand';
+  if (item.module === 'lumber') return q.count+' cuts of '+fmt(q.memberLengthM,3)+' m · '+q.stockPieces+' '+q.spec+' timber pcs · '+fmt(q.boardFeetToBuy,2)+' bd-ft';
+  if (item.module === 'plaster') return fmt(q.area,2)+' m² plaster ('+q.thicknessMm+'mm) · '+q.bags+' cement bags · '+fmt(q.sand,3)+' m³ sand';
   if (item.module === 'paint') return q.cans + ' cans of ' + fmt(q.canLiters, 3) + ' L paint · ' + q.primerCans + ' cans primer';
   if (item.module === 'tile') return q.boxes + ' boxes (' + q.tiles + ' tiles) · ' + q.adhesiveBags + ' bags adhesive · ' + fmt(q.groutBuyKg, 2) + ' kg grout';
   if (item.module === 'nail') return q.count + ' nails · ' + fmt(q.buyKg, 2) + ' kg';
-  if (item.module === 'formwork') return fmt(q.areaSqm,3) + ' m² porma · ' + q.plywoodSheets + ' phenolic sheets · ' + q.framingBars + ' framing stock · ' + q.braceCount + ' braces · ' + fmt(q.nailBuyKg,1) + ' kg nails';
+  if (item.module === 'formwork') return fmt(q.type==='scaffolding'?(q.stagingAreaSqm||0):q.areaSqm,3) + ' m² ' + (q.type==='scaffolding'?'scaffold staging':'porma') + ' · ' + q.plywoodSheets + ' phenolic sheets · ' + q.framingBars + ' lumber stock · ' + q.braceCount + ' braces · ' + fmt(q.nailBuyKg,1) + ' kg nails';
   return 'Material quantity';
 }
 function addCurrentToProject() {
-  if (!currentResult || !currentResult.quantity || !['steel','concrete','paint','tile','nail','formwork'].includes(currentModule)) {
+  if (!currentResult || !currentResult.quantity || !['steel','concrete','chb','plaster','lumber','paint','tile','nail','formwork'].includes(currentModule)) {
     toast('Calculate a material first.', 'fa-triangle-exclamation'); return;
   }
   var project = editingProjectId ? getProjects().find(function(p) { return p.id === editingProjectId; }) : getActiveProject();
@@ -176,8 +180,8 @@ function renderProjects() {
         if (saveProject(updated)) { inp.blur(); renderProjects(); }
       });
     });
-    total.innerHTML = '<div class="sheet-totals"><span>Materials subtotal</span><b>' + money(s.materials) + '</b><span>Labor</span><b>' + money(s.labor) + '</b><span>Overhead</span><b>' + money(s.overhead) + '</b><span>Contingency</span><b>' + money(s.contingency) + '</b><strong>PROJECT GRAND TOTAL</strong><strong>' + money(s.total) + '</strong></div>' +
-      (s.warnings.length ? '<p class="sheet-warning">Missing prices: ' + escapeHTML(s.warnings.join('; ')) + '</p>' : '') +
+    total.innerHTML = '<div class="sheet-totals"><span>Materials subtotal</span><b>' + money(s.materials) + '</b><span>Labor</span><b>' + money(s.labor) + '</b><span>Overhead</span><b>' + money(s.overhead) + '</b><span>Contingency</span><b>' + money(s.contingency) + '</b><strong>' + (s.warnings.length ? 'PARTIAL TOTAL (PRICES MISSING)' : 'PROJECT GRAND TOTAL') + '</strong><strong>' + money(s.total) + '</strong></div>' +
+      (s.warnings.length ? '<p class="sheet-warning">WARNING: Total is incomplete until unit prices are entered. Missing prices: ' + escapeHTML(s.warnings.join('; ')) + '</p>' : '') +
       '<p class="form-note">Edit each unit price here; it is saved for this project. Default material prices are in Calculator → Cost. Purchase bars grouped and cut-packed by role, diameter and stock length; tie-wire is rounded once to 0.5 kg across this project.</p>';
   } catch(e) {
     out.textContent = 'Cannot summarize this project: ' + (e.message || 'invalid project data'); total.textContent = '';
@@ -259,8 +263,8 @@ function projectPDF() {
     line('Labor', 'PHP ' + fmt(summary.labor,2));
     line('Overhead', 'PHP ' + fmt(summary.overhead,2));
     line('Contingency', 'PHP ' + fmt(summary.contingency,2));
-    line('PROJECT TOTAL', 'PHP ' + fmt(summary.total,2), true);
-    if (summary.warnings.length) line('Unpriced: ' + summary.warnings.join('; '), '');
+    line(summary.warnings.length ? 'PARTIAL TOTAL - PRICES MISSING' : 'PROJECT TOTAL', 'PHP ' + fmt(summary.total,2), true);
+    if (summary.warnings.length) line('WARNING: Incomplete cost - enter missing prices. Unpriced: ' + summary.warnings.join('; '), '');
     if (y > 710) nextPage('ESTIMATE NOTES');
     doc.setFontSize(8); doc.setTextColor(110,110,110);
     doc.text(doc.splitTextToSize('Quantity estimates only; not structural reinforcement design. Verify hook/development and splice specifications against approved plans. Bars grouped by diameter/role/stock for preliminary cutting estimates.',width-84),x,y+18);
