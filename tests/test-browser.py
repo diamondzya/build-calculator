@@ -5,9 +5,8 @@ base=Path(__file__).resolve().parents[1]
 out=Path(__file__).resolve().parent / "test-output"
 out.mkdir(parents=True, exist_ok=True)
 html=(base/"index.html").read_text()
-html=html.replace('<link rel="stylesheet" href="assets/fontawesome/css/all.min.css">','<style>'+(base/"assets/fontawesome/css/all.min.css").read_text()+'</style>')
 html=html.replace('<link rel="stylesheet" href="style.css">','<style>'+(base/"style.css").read_text()+'</style>')
-for name in ("assets/jspdf.umd.min.js","calc-engine.js","script.js"):
+for name in ("assets/jspdf.umd.min.js","calc-engine.js","script.js","project-sheets.js","icons.js","project-sheets.js"):
     html=html.replace('<script src="'+name+'"></script>','<script>'+(base/name).read_text().replace("</script>","<\\/script>")+'</script>')
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True, executable_path='/usr/bin/chromium',args=['--no-sandbox'])
@@ -21,7 +20,7 @@ with sync_playwright() as p:
  assert page.is_visible('#steel-tie-fields')
  assert not page.is_visible('#steel-grid-fields')
  page.click('#form-steel .calc-btn')
- assert 'Steel Requirement' in page.locator('#result-title').inner_text()
+ assert 'Steel & Tie-Wire Requirement' in page.locator('#result-title').inner_text()
  assert '8 bars' in page.locator('#result-body').inner_text() or ('2 bars' in page.locator('#result-body').inner_text() and '6 bars' in page.locator('#result-body').inner_text())
  # invalid numerical input should hide stale prior result and show error
  page.locator('#steel-length').fill('0')

@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f57c00">
 <title>BuildCalc — Construction Material Calculator</title>
-<link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -23,6 +22,7 @@
     <nav class="main-nav" aria-label="Main navigation">
       <button class="nav-btn is-active" data-view="home" type="button" aria-label="Home"><i class="fa-solid fa-house"></i><span>Home</span></button>
       <button class="nav-btn" data-view="calculators" type="button" aria-label="Calculator"><i class="fa-solid fa-calculator"></i><span>Calculator</span></button>
+      <button class="nav-btn" data-view="projects" type="button" aria-label="Project sheets"><i class="fa-solid fa-table-list"></i><span>Project Sheets</span></button>
       <button class="nav-btn" data-view="saved" type="button" aria-label="Saved estimates"><i class="fa-solid fa-clock-rotate-left"></i><span>Saved</span></button>
       <button class="nav-btn" data-view="about" type="button" aria-label="About"><i class="fa-solid fa-circle-info"></i><span>About</span></button>
     </nav>
@@ -36,7 +36,7 @@
     <div class="hero">
       <p class="hero-kicker">Para sa mga kontratista at manggagawa</p>
       <h2>Estimate your construction materials quickly and accurately</h2>
-      <p class="hero-sub">Steel, paint, tiles, nails, and concrete — computed from your measurements before you buy supplies.</p>
+      <p class="hero-sub">Steel, concrete, paint, tiles and nails — organized into full project sheets with one purchasing summary.</p>
       <button class="btn btn-primary btn-lg" id="btn-start" type="button">
         <i class="fa-solid fa-calculator"></i> Start Calculating
       </button>
@@ -108,7 +108,7 @@
         </div>
         <div class="field-row">
           <div class="field"><label for="steel-cover">Concrete Cover <em>(mm)</em></label><input type="number" id="steel-cover" min="0" step="5" value="40" required></div>
-          <div class="field"><label for="steel-stock">Stock Bar Length <em>(m)</em></label><select id="steel-stock"><option value="6">6 meters</option><option value="12" selected>12 meters</option></select></div>
+          <div class="field"><label for="steel-stock">Stock Bar Length <em>(m)</em></label><select id="steel-stock"><option value="6">6 meters</option><option value="9">9 meters</option><option value="12" selected>12 meters</option></select></div>
         </div>
         <div class="field-row" id="steel-grid-fields">
           <div class="field"><label for="steel-layers">Grid Layers</label><select id="steel-layers"><option value="1" selected>1 layer</option><option value="2">2 layers</option></select></div>
@@ -116,6 +116,37 @@
         <div class="field-row" id="steel-tie-fields">
           <div class="field"><label for="steel-longitudinal">Longitudinal Bars</label><input type="number" id="steel-longitudinal" min="1" step="1" value="4" required></div>
           <div class="field"><label for="steel-tie-size">Tie / Stirrup Diameter</label><select id="steel-tie-size"><option value="10" selected>10 mm</option><option value="12">12 mm</option><option value="16">16 mm</option><option value="20">20 mm</option></select></div>
+        </div>
+        <div class="field"><label for="steel-elements">Number of Identical Elements</label><input type="number" id="steel-elements" min="1" step="1" value="1" required></div>
+        <div class="steel-detail" id="steel-column-fields">
+          <h4>Column Elevation / Poste <small>(visible for columns only)</small></h4>
+          <p class="form-note">Column Length above is the height <strong>above finished floor level (FFL)</strong>. Include the depth under FFL here—not in the length field twice.</p>
+          <div class="field-row">
+            <div class="field"><label for="steel-excavation">Depth Below Floor / Hukay <em>(m)</em></label><input type="number" id="steel-excavation" min="0" step="0.05" value="1.5" required></div>
+            <div class="field"><label for="steel-bottom-hook">Bottom Hook / Anchorage <em>(m/bar)</em></label><input type="number" id="steel-bottom-hook" min="0" step="0.05" value="0" required></div>
+          </div>
+          <div class="field"><label for="steel-top-hook">Top Hook / Anchorage <em>(m/bar)</em></label><input type="number" id="steel-top-hook" min="0" step="0.05" value="0" required></div>
+        </div>
+        <div class="steel-detail" id="steel-splice-fields">
+          <h4>Splicing / Pagdudugtong</h4>
+          <div class="field-row">
+            <div class="field"><label for="steel-lap">Lap / Splice Overlap <em>(m, from approved plans)</em></label><input type="number" id="steel-lap" min="0" step="0.01" value="0" required></div>
+            <div class="field"><label for="steel-min-splices">Minimum Splices per Main Bar</label><input type="number" id="steel-min-splices" min="0" step="1" value="0" required></div>
+          </div>
+          <p class="form-note">If the bar run exceeds the selected 6/9/12 m stock, BuildCalc estimates the minimum number of segments using the entered lap. It does not design splice locations or check development lengths.</p>
+        </div>
+        <div class="steel-detail" id="steel-wire-fields">
+          <h4>Stirrup Hooks &amp; Tie Wire / Alambre</h4>
+          <div class="field-row">
+            <div class="field"><label for="steel-stirrup-hook">Stirrup Hook Tail <em>(bar diameters per end)</em></label><input type="number" id="steel-stirrup-hook" min="0" max="30" step="1" value="10" required></div>
+            <div class="field"><label for="steel-wire-cut">Tie Wire per Joint <em>(cm/cut)</em></label><input type="number" id="steel-wire-cut" min="1" max="200" step="1" value="30" required></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="steel-wire-ties">Wire Pieces per Intersection</label><input type="number" id="steel-wire-ties" min="1" step="1" value="1" required></div>
+            <div class="field"><label for="steel-wire-waste">Tie Wire Extra Allowance <em>(%)</em></label><input type="number" id="steel-wire-waste" min="0" max="100" step="1" value="10" required></div>
+          </div>
+          <div class="field"><label for="steel-wire-grams">Wire Unit Weight <em>(g/m, #16 typical ~15.8)</em></label><input type="number" id="steel-wire-grams" min="0.1" step="0.1" value="15.8" required></div>
+          <p class="form-note">These are editable material allowances, not automatic compliance with structural tie-hook specifications.</p>
         </div>
         <div class="form-actions">
           <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-bolt"></i> Calculate</button>
@@ -300,6 +331,7 @@
           <label for="conc-height">Height / Thickness <em>(m)</em></label>
           <input type="number" id="conc-height" min="0" step="0.1" value="0.1" required>
         </div>
+        <div class="field" id="conc-below-fields" hidden><label for="conc-below">Column Depth Below Finished Floor / Hukay <em>(m, included in concrete height)</em></label><input type="number" id="conc-below" min="0" step="0.05" value="1.5" required><p class="form-note">For columns: concrete height = height above floor + this below-floor depth. Do not enter this depth twice.</p></div>
         <div class="field-row">
           <div class="field"><label for="conc-mix">Nominal Concrete Class</label><select id="conc-mix"><option value="AA">AA — 1:1.5:3</option><option value="A" selected>A — 1:2:4</option><option value="B">B — 1:2.5:5</option><option value="C">C — 1:3:6</option></select></div>
           <div class="field"><label for="conc-count">Number of Identical Elements</label><input type="number" id="conc-count" min="1" step="1" value="1" required></div>
@@ -315,7 +347,8 @@
       <form class="calc-form" id="form-cost" data-module="cost" hidden>
         <div class="form-head">
           <h3><i class="fa-solid fa-peso-sign"></i> Material Cost Estimator</h3>
-          <p>Uses the latest successful calculation from each module. Prices are editable examples, not live supplier quotes.</p>
+          <p>Price your active Project Sheet or latest module calculation. Enter supplier rates; individual bar-size prices can be overridden in Project Sheets.</p>
+          <div class="field"><label for="cost-source">Calculation Source</label><select id="cost-source"><option value="project" selected>Active Project Sheet (all saved line items)</option><option value="latest">Latest per calculator (legacy mode)</option></select></div>
         </div>
         <div class="field"><label for="cost-project-name">Project / Estimate Name <em>(optional)</em></label><input type="text" id="cost-project-name" maxlength="100" placeholder="e.g., Cainta renovation"></div>
         <div class="cost-grid">
@@ -343,6 +376,7 @@
             <label for="price-labor">Labor <em>(₱ / worker / day)</em></label>
             <input type="number" id="price-labor" min="0" step="1" value="0">
           </div>
+          <div class="field"><label for="price-wire">Tie Wire / Alambre <em>(₱ / kg)</em></label><input type="number" id="price-wire" min="0" step="0.01" value="0" required></div>
           <div class="field"><label for="price-ties">Tie Steel <em>(₱ / stock bar)</em></label><input type="number" id="price-ties" min="0" step="0.01" value="0" required></div>
           <div class="field"><label for="price-primer">Primer <em>(₱ / selected can)</em></label><input type="number" id="price-primer" min="0" step="0.01" value="0" required></div>
           <div class="field"><label for="price-adhesive">Tile Adhesive <em>(₱ / 25kg bag)</em></label><input type="number" id="price-adhesive" min="0" step="0.01" value="0" required></div>
@@ -359,7 +393,7 @@
           <div class="field"><label for="cost-overhead">Overhead <em>(%)</em></label><input type="number" id="cost-overhead" min="0" max="100" step="0.5" value="0" required></div>
           <div class="field"><label for="cost-contingency">Contingency <em>(%)</em></label><input type="number" id="cost-contingency" min="0" max="100" step="0.5" value="0" required></div>
         </div>
-        <p class="form-note">Material prices set to ₱0 are excluded from the amount but will be flagged. Estimates are not combined into multiple project line items.</p>
+        <p class="form-note">Material prices set to ₱0 are flagged. Project mode aggregates ALL entries from the active sheet, instead of replacing earlier calculations.</p>
         <div class="form-actions">
           <button type="button" class="btn btn-primary btn-block calc-btn"><i class="fa-solid fa-peso-sign"></i> Compute Total</button>
           <button type="reset" class="btn btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset</button>
@@ -431,13 +465,38 @@
         <div class="result-body" id="result-body">
           <!-- rows injected by JS -->
         </div>
+        <div class="field" id="project-item-label"><label for="line-item-name">Project Line Item Name (optional)</label><input type="text" maxlength="140" id="line-item-name" placeholder="e.g., Column C1 / Footing F1"></div>
         <div class="result-actions">
-          <button class="btn btn-primary" id="btn-save" type="button"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+          <button class="btn btn-primary" id="btn-add-project" type="button"><i class="fa-solid fa-file-circle-plus"></i> Add to Project Sheet</button>
+          <button class="btn btn-outline" id="btn-save" type="button"><i class="fa-solid fa-floppy-disk"></i> Save</button>
           <button class="btn btn-outline" id="btn-print" type="button"><i class="fa-solid fa-print"></i> Print</button>
           <button class="btn btn-outline" id="btn-pdf" type="button"><i class="fa-solid fa-file-pdf"></i> PDF</button>
         </div>
       </div>
 
+    </div>
+  </section>
+
+  <!-- ============ PROJECT SHEETS ============ -->
+  <section class="view" id="view-projects" aria-label="Project sheets">
+    <div class="sheet-wrap">
+      <div class="sheet-heading">
+        <div><p class="sheet-eyebrow">BuildCalc · Bill of Quantities</p><h2><i class="fa-solid fa-table-list"></i> Project Sheets</h2><p>Detailed sections: pundasyon, haligi, biga, slab, and other construction works. One overall material summary.</p></div>
+        <div class="sheet-toolbar">
+          <button type="button" class="btn btn-primary" id="project-new"><i class="fa-solid fa-plus"></i> New Project</button>
+          <button type="button" class="btn btn-outline" id="project-pdf"><i class="fa-solid fa-file-pdf"></i> Full Report PDF</button>
+          <button type="button" class="btn btn-outline" id="project-print"><i class="fa-solid fa-print"></i> Print Sheets</button>
+        </div>
+      </div>
+      <div class="field-row sheet-controls">
+        <div class="field"><label for="project-select">Active Project</label><select id="project-select"></select></div>
+        <div class="field"><label for="project-name">Project Name</label><input id="project-name" type="text" maxlength="100" placeholder="House Construction – Cainta"></div>
+      </div>
+      <div class="sheet-toolbar"><button class="btn btn-outline" id="project-rename" type="button">Save Project Name</button><button class="btn btn-ghost" id="project-delete" type="button">Delete This Project</button><button class="btn btn-outline" id="project-pricing" type="button">Edit Material Prices</button></div>
+      <div id="project-empty" class="empty-state" hidden><i class="fa-solid fa-clipboard-list"></i><h4>No items in this project yet</h4><p>Calculate steel, concrete, paint, tiles or nails, then click <b>Add to Project Sheet</b>.</p></div>
+      <div id="project-details" class="sheet-details"></div>
+      <div class="sheet-summary" id="project-summary"><h3>Consolidated Material Summary</h3><div id="project-summary-lines"></div><div id="project-summary-total"></div></div>
+      <p class="form-note">Quantities are preliminary. Stock-bar counts are optimized across cuts with matching role, diameter and stock length; cutting layouts, splicing positions, hooks and bend deductions must be checked by a qualified engineer/fabricator. Prices are user-supplied.</p>
     </div>
   </section>
 
@@ -484,5 +543,7 @@
 <script src="assets/jspdf.umd.min.js"></script>
 <script src="calc-engine.js"></script>
 <script src="script.js"></script>
+<script src="project-sheets.js"></script>
+<script src="icons.js"></script>
 </body>
 </html>

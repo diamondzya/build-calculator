@@ -524,3 +524,66 @@ input[type="text"]:focus { outline: none; border-color: var(--orange); box-shado
 .cost-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: var(--sp-2) var(--sp-3); }
 .cost-grid .field { margin-bottom: 0; }
 @media (max-width: 640px) { .cost-grid { grid-template-columns: 1fr; } }
+/* ===== v3 Multi-project BOQ / detailed sheet ===== */
+.sheet-wrap {max-width:1100px; margin: 0 auto;}
+.sheet-heading {display:flex; gap:20px; justify-content:space-between; align-items:flex-start; margin-bottom:18px;}
+.sheet-heading h2 {font-size:clamp(1.5rem,3vw,2.1rem); margin:6px 0;}
+.sheet-heading > div > p {color:var(--gray);max-width:650px;}
+.sheet-eyebrow {text-transform:uppercase;letter-spacing: .1em; color: var(--orange)!important;font-size: .75rem;font-weight:700;}
+.sheet-toolbar {display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.sheet-controls {margin-top:15px;}
+.sheet-section, .sheet-summary {border:1px solid var(--line);background:var(--surface);border-radius:var(--radius-lg);padding:18px;margin-top:18px;box-shadow:var(--shadow-sm);}
+.sheet-section h3 {font-size:1.2rem;border-bottom:2px solid var(--orange);padding-bottom:10px;margin:0;}
+.sheet-section-count {font-size:.85rem;color:var(--gray);margin:8px 0 12px;}
+.sheet-line {display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;border-bottom:1px solid var(--line);padding:14px 0;}
+.sheet-line:last-child{border:0;}
+.sheet-line-info h4 {margin:0 0 4px; font-size:1rem; overflow-wrap:anywhere;}
+.sheet-line-info p {color:var(--gray);margin:0;font-size:.85rem;line-height:1.65;}
+.sheet-line-actions {display:flex;gap:6px;}
+.sheet-line-actions .btn {min-height:36px;padding:7px 12px;font-size:.85rem;}
+.sheet-breakdown{grid-column:1/-1;}
+.sheet-breakdown summary{cursor:pointer;color:var(--orange);font-weight:600;font-size:.85rem;}
+.sheet-breakdown table{border-collapse:collapse;width:100%;margin-top:12px;font-size:.85rem;}
+.sheet-breakdown td{padding:6px 10px;border-bottom:1px solid var(--line);}
+.sheet-breakdown td:last-child{text-align:right;font-weight:600;}
+.sheet-summary h3{font-size:1.3rem;margin:0 0 16px;}
+.sheet-table-scroll{overflow-x:auto;}
+.sheet-table{width:100%;border-collapse:collapse;min-width:540px;font-size:.88rem;}
+.sheet-table th{background:var(--surface-alt,var(--line));text-align:left;padding:12px;}
+.sheet-table td{padding:12px;border-bottom:1px solid var(--line);}
+.sheet-table th:not(:first-child), .sheet-table td:not(:first-child){text-align:right;}
+.sheet-totals{display:grid;grid-template-columns:1fr auto;gap:12px;max-width:460px;margin:16px 0 0 auto;padding-top:14px;border-top:2px solid var(--orange);}
+.sheet-totals > :nth-last-child(-n+2){font-size:1.2rem;color:var(--orange);border-top:1px solid var(--line);padding-top:12px;}
+.sheet-warning{color:var(--danger);font-weight:600;margin:14px 0;}
+.steel-detail{padding:14px;margin:16px 0;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);}
+.steel-detail h4{margin:0 0 12px;color:var(--ink);font-size:1rem;}
+.steel-detail h4 small{font-weight:400;font-size:.78rem;color:var(--gray);}
+@media(max-width:720px){.sheet-heading{flex-direction:column}.sheet-toolbar .btn{flex:1 1 auto}.sheet-line{grid-template-columns:1fr}.sheet-line-actions{justify-content:flex-start}.sheet-totals{max-width:100%;}.sheet-section,.sheet-summary{padding:13px;}}
+@media print {
+ .print-report .sheet-page{break-before:page;page-break-before:always;}
+ .print-report .sheet-page:first-child{break-before:auto;page-break-before:auto;}
+ .print-report .sheet-page h3{margin:18pt 0 5pt;break-after:avoid;}
+ .print-report tr{break-inside:avoid;}
+}
+.sheet-rate-input{width:120px;max-width:100%;min-height:36px!important;height:36px;padding:4px 8px!important;font-size:.85rem!important;text-align:right;border:1px solid var(--line)!important;border-radius:6px!important;background:var(--surface)!important;color:var(--ink)!important;}
+/* Compact BOQ cards on phones: all prices visible without horizontal scrolling. */
+@media(max-width:640px){
+ .sheet-table{min-width:0;font-size:.85rem;}
+ .sheet-table thead{display:none;}
+ .sheet-table tbody tr{display:grid;grid-template-columns:1fr 1fr;gap:6px;border-bottom:1px solid var(--line);padding:10px 0;}
+ .sheet-table td{border:0;padding:2px 4px;text-align:left!important;overflow-wrap:anywhere;}
+ .sheet-table td:first-child{grid-column:1/-1;font-weight:700;color:var(--ink);}
+ .sheet-table td:nth-child(2)::before{content:"Quantity";display:block;font-size:.73rem;font-weight:400;color:var(--gray);}
+ .sheet-table td:nth-child(3)::before{content:"Unit price (PHP)";display:block;font-size:.73rem;font-weight:400;color:var(--gray);}
+ .sheet-table td:nth-child(4)::before{content:"Line amount (PHP)";display:block;font-size:.73rem;font-weight:400;color:var(--gray);}
+ .sheet-table td:nth-child(3),.sheet-table td:nth-child(4){text-align:left!important;}
+ .sheet-table .sheet-rate-input{width:100%;}
+}
+
+/* Locally embedded SVG vector icons — no icon font files required */
+i.fa-solid { display:inline-flex;align-items:center;justify-content:center;line-height:1;vertical-align:-.12em;font-style:normal;flex-shrink:0; }
+i.fa-solid svg { width:1em;height:1em;display:block;fill:currentColor; }
+.sheet-section-total{margin-top:16px;padding:14px;border-radius:var(--radius);background:var(--surface-alt,var(--line));}
+.sheet-section-total h4{font-size:1rem;margin:0 0 12px;}
+.sheet-section-amount{display:flex;justify-content:space-between;gap:10px;padding-top:12px;margin-top:12px;border-top:1px solid var(--line);font-size:.9rem;}
+@media(max-width:640px){.sheet-section-total .sheet-table td:nth-child(3)::before{content:"Section amount (PHP)";}}

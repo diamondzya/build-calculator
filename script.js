@@ -20,6 +20,8 @@ var MODULES = [
 var STORE_KEY = "buildcalc.saved.v1";
 var PRICE_KEY = "buildcalc.prices.v1";
 var QUANT_KEY = "buildcalc.quantities.v1";
+var PROJECT_KEY = "buildcalc.projects.v3";
+var ACTIVE_PROJECT_KEY = "buildcalc.activeproject.v3";
 
 /* =========================================================
    Small helpers
@@ -110,6 +112,7 @@ function showView(name) {
   $all(".nav-btn").forEach(function (b) { b.classList.toggle("is-active", b.dataset.view === name); });
   $all(".view").forEach(function (v) { v.classList.toggle("is-active", v.id === "view-" + name); });
   if (name === "saved") renderSaved();
+  if (name === "projects") renderProjects();
 }
 
 /* =========================================================
@@ -126,7 +129,7 @@ function selectModule(id, silent) {
   if (form && !silent) {
     /* instant recalculation on switching, using current field values */
     if (id === "converter") { updateConverter(); return; }
-    updateSteelFields();
+    updateSteelFields(); updateConcreteFields();
     runCalc(form, true);
   }
 }
@@ -247,6 +250,8 @@ function resultRows(resultTitle, sub, rows, note, totals) {
   showResult(resultTitle, sub, rows, totals || []);
   currentResult.note = note;
   $('#result-note').textContent = note || '';
+  $('#btn-add-project').hidden = !['steel','concrete','paint','tile','nail'].includes(currentModule);
+  $('#project-item-label').hidden = $('#btn-add-project').hidden;
   currentResult.inputValues = captureInputs($('.calc-form[data-module="' + currentModule + '"]'));
 }
 function captureInputs(form) {
@@ -282,7 +287,11 @@ function updateSteelFields() {
   var grid = ['slab', 'footing', 'staircase'].indexOf(field('steel-project')) >= 0;
   $('#steel-grid-fields').hidden = !grid;
   $('#steel-tie-fields').hidden = grid;
+  $('#steel-column-fields').hidden = field('steel-project') !== 'column';
+  $('#steel-stirrup-hook').disabled = grid;
+  $('#steel-min-splices').disabled = false;
 }
+function updateConcreteFields() { $('#conc-below-fields').hidden = field('conc-project') !== 'column'; }
 function updateTileBoxDefault() {
   var data = BuildCalcEngine.constants.tiles[field('tile-size')];
   if (data) $('#tile-pcs-box').value = data.pcsPerBox;
@@ -299,19 +308,35 @@ function runSteel(silent) {
       project: field('steel-project'), length: field('steel-length'), width: field('steel-width'),
       height: field('steel-height'), spacingCm: field('steel-spacing'), coverMm: field('steel-cover'),
       stockLength: field('steel-stock'), size: $('.chip.is-active', $('#form-steel')).dataset.value,
-      tieSize: field('steel-tie-size'), layers: field('steel-layers'), longitudinalBars: field('steel-longitudinal')
+      tieSize: field('steel-tie-size'), layers: field('steel-layers'), longitudinalBars: field('steel-longitudinal'),
+      elementCount: field('steel-elements'), excavationDepth: field('steel-excavation'),
+      bottomHookM: field('steel-bottom-hook'), topHookM: field('steel-top-hook'),
+      lapLength: field('steel-lap'), minSplices: field('steel-min-splices'),
+      stirrupHookDb: field('steel-stirrup-hook'), wireLengthCm: field('steel-wire-cut'),
+      wirePerJoin: field('steel-wire-ties'), wireWastePct: field('steel-wire-waste'),
+      wireGramPerM: field('steel-wire-grams')
     });
     var rows = [
-      { label: 'Main Bar Length', fil: 'Straight length', value: fmt(r.mainLength, 2) + ' m' },
-      { label: 'Main Steel to Buy', fil: r.mainDiameter + ' mm × ' + r.stockLength + ' m', value: fmt(r.mainPieces, 0) + ' bars', hero: true }
+      { label: 'Longitudinal Bar Run', fil: 'Includes applicable depth + entered hooks', value: fmt(r.mainRunLength, 3) + ' m/bar' },
+      { label: 'Main Reinforcement Length', fil: 'Includes entered splice overlaps · ' + r.elementCount + ' identical element(s)', value: fmt(r.mainLength, 3) + ' m' },
+      { label: 'Main Stock Bars to Buy', fil: r.mainDiameter + 'mm × ' + r.stockLength + 'm', value: r.mainPieces + ' bars', hero: true }
     ];
-    if (r.tiePieces) rows.push({ label: 'Stirrups / Ties', fil: r.tieDiameter + ' mm · ' + fmt(r.stirrupCutLength, 2) + ' m per cut', value: r.stirrups + ' pcs' },
-      { label: 'Tie Steel to Buy', fil: r.tieDiameter + ' mm × ' + r.stockLength + ' m', value: r.tiePieces + ' bars' });
-    else rows.push({ label: 'Grid Bars', fil: 'Lengthwise / crosswise', value: r.countLengthwise + ' / ' + r.countWidthwise });
-    rows.push({ label: 'Estimated Weight', fil: 'Main bars + ties', value: fmt(r.mainWeight + r.tieWeight, 2) + ' kg' });
-    storeQuantities('steel', { mainPieces: r.mainPieces, tiePieces: r.tiePieces, mainDiameter: r.mainDiameter,
-      tieDiameter: r.tieDiameter, stockLength: r.stockLength });
-    resultRows('Steel Requirement', field('steel-project') + ' · ' + r.stockLength + ' m stock', rows, r.note);
+    if (r.type === 'column') rows.push(
+      { label: 'Height Above FFL + Below FFL', fil: 'Column rise / hukay', value: fmt(Number(field('steel-length')), 2) + ' + ' + fmt(r.excavationDepth, 2) + ' = ' + fmt(r.verticalLength, 2) + ' m' },
+      { label: 'Bottom + Top Hook / Anchorage', fil: 'Entered allowance per longitudinal bar', value: fmt(r.bottomHook, 2) + ' + ' + fmt(r.topHook, 2) + ' m' });
+    rows.push({ label: 'Splice / Lap Joints', fil: fmt(r.spliceLap, 3) + ' m overlap per joint, if needed', value: r.spliceCount + ' joints' });
+    if (r.tiePieces) rows.push(
+      { label: 'Anilyo / Stirrups', fil: r.tieDiameter + 'mm · ' + fmt(r.stirrupCutLength, 3) + ' m cut incl. hook tails', value: r.stirrups + ' pcs' },
+      { label: 'Anilyo Steel to Buy', fil: r.tieDiameter + 'mm × ' + r.stockLength + 'm', value: r.tiePieces + ' bars' });
+    else rows.push({ label: 'Grid Rebars', fil: 'Parallel length / parallel width', value: r.countLengthwise + ' / ' + r.countWidthwise + ' pcs' });
+    rows.push(
+      { label: 'Panali / Tie Wire (#16)', fil: r.tieWireJoints + ' intersections, incl. ' + field('steel-wire-waste') + '% allowance', value: fmt(r.tieWireKg, 3) + ' kg' },
+      { label: 'Tie Wire to Buy', fil: 'Rounded up to 0.5 kg for this item', value: fmt(r.wireBuyKg, 1) + ' kg' },
+      { label: 'Steel Weight', fil: 'Longitudinal and stirrup bars (excludes tie wire)', value: fmt(r.mainWeight + r.tieWeight, 2) + ' kg' });
+    storeQuantities('steel', { mainPieces: r.mainPieces, tiePieces: r.tiePieces, wireBuyKg: r.wireBuyKg,
+      mainDiameter: r.mainDiameter, tieDiameter: r.tieDiameter, stockLength: r.stockLength });
+    resultRows('Steel & Tie-Wire Requirement', field('steel-project') + ' · ' + r.stockLength + ' m stock · ' + r.elementCount + ' elements', rows, r.note);
+    currentResult.quantity = r; currentResult.section = field('steel-project');
     return r;
   }, silent);
 }
@@ -330,6 +355,7 @@ function runPaint(silent) {
     if (r.primerCans) rows.push({ label: 'Primer', fil: 'One coat', value: fmt(r.primerLiters, 2) + ' L / ' + r.primerCans + ' cans' });
     storeQuantities('paint', { cans: r.cans, primerCans: r.primerCans, canLiters: r.canLiters, type: field('paint-type') });
     resultRows('Paint Requirement', field('paint-type') + ' · ' + field('paint-coats') + ' coat(s)', rows, r.note);
+    r.type = field('paint-type'); currentResult.quantity = r; currentResult.section = 'paint';
     return r;
   }, silent);
 }
@@ -340,6 +366,7 @@ function runTile(silent) {
       adhesiveCoverage: field('tile-adhesive-coverage'), adhesiveWastePct: field('tile-adhesive-waste'),
       groutRate: field('tile-grout-rate') });
     storeQuantities('tile', { boxes: r.boxes, tiles: r.tiles, adhesiveBags: r.adhesiveBags, groutBuyKg: r.groutBuyKg });
+    r.tileSize = field('tile-size');
     resultRows('Tile Requirement', field('tile-size') + ' cm · ' + fmt(Number(field('tile-allowance')) * 100, 0) + '% cuts allowance', [
       { label: 'Floor Area', fil: 'Gross', value: fmt(r.area, 2) + ' m²' },
       { label: 'Tile Pieces', fil: 'Including cut allowance', value: r.tiles + ' pcs' },
@@ -347,6 +374,7 @@ function runTile(silent) {
       { label: 'Tile Adhesive', fil: '25 kg bags', value: r.adhesiveBags + ' bags' },
       { label: 'Grout', fil: 'Approximate · rounded to 0.5 kg for costing', value: fmt(r.groutKg, 2) + ' kg / ' + fmt(r.groutBuyKg, 1) + ' kg to buy' }
     ], r.note);
+    currentResult.quantity = r; currentResult.section = 'tile';
     return r;
   }, silent);
 }
@@ -356,12 +384,14 @@ function runNail(silent) {
       boards: field('nail-boards'), spacingCm: field('nail-spacing'),
       nailsPerJoint: field('nail-per-joint'), wastePct: field('nail-waste') });
     storeQuantities('nail', { count: r.count, kg: r.kg, buyKg: r.buyKg });
+    r.nailSize = r.size;
     resultRows('Nail Requirement', field('nail-material') + ' · ' + r.size, [
       { label: 'Fastening Points', fil: 'From run and spacing', value: r.joints + ' joints' },
       { label: 'Nails Required', fil: 'Including boards and waste', value: r.count + ' pcs', hero: true },
       { label: 'Estimated Weight', fil: 'Individual nail weight is approximate', value: fmt(r.kg, 3) + ' kg' },
       { label: 'Nails to Buy', fil: 'Rounded to 0.5 kg', value: fmt(r.buyKg, 1) + ' kg' }
     ], r.note);
+    currentResult.quantity = r; currentResult.section = 'nail';
     return r;
   }, silent);
 }
@@ -369,22 +399,23 @@ function runConcrete(silent) {
   return safeCompute(function () {
     var r = BuildCalcEngine.concrete({ project: field('conc-project'), length: field('conc-length'),
       width: field('conc-width'), height: field('conc-height'),
-      count: field('conc-count'), mixClass: field('conc-mix'), wastePct: field('conc-waste') });
+      count: field('conc-count'), mixClass: field('conc-mix'), wastePct: field('conc-waste'), belowFloorM: field('conc-below') });
     storeQuantities('concrete', { bags: r.bags, sand: r.sand, gravel: r.gravel, volume: r.volume });
     resultRows('Concrete Material Take-off', field('conc-project') + ' · Class ' + r.className + ' · ' + r.ratio, [
-      { label: 'Net Concrete Volume', fil: r.count + ' element(s)', value: fmt(r.volume, 3) + ' m³', hero: true },
+      { label: 'Net Concrete Volume', fil: r.count + ' element(s)' + (r.belowFloor ? ' · height includes ' + fmt(r.belowFloor, 2) + ' m hukay' : ''), value: fmt(r.volume, 3) + ' m³', hero: true },
       { label: 'With Material Allowance', fil: 'Basis for purchase estimate', value: fmt(r.materialVolume, 3) + ' m³' },
       { label: 'Cement', fil: '40 kg bags', value: r.bags + ' bags' },
       { label: 'Sand', fil: 'Loose material estimate', value: fmt(r.sand, 3) + ' m³' },
       { label: 'Gravel', fil: 'Loose material estimate', value: fmt(r.gravel, 3) + ' m³' }
     ], r.note);
+    currentResult.quantity = r; currentResult.section = field('conc-project');
     return r;
   }, silent);
 }
 function runCost(silent) {
   return safeCompute(function () {
     var prices = {
-      cement: priceField('cement'), steel: priceField('steel'), ties: priceField('ties'),
+      cement: priceField('cement'), steel: priceField('steel'), ties: priceField('ties'), wire: priceField('wire'),
       paint: priceField('paint'), primer: priceField('primer'), tile: priceField('tile'),
       adhesive: priceField('adhesive'), grout: priceField('grout'), nails: priceField('nails'),
       sand: priceField('sand'), gravel: priceField('gravel'), labor: priceField('labor'),
@@ -393,19 +424,24 @@ function runCost(silent) {
     };
     var q = loadJSON(QUANT_KEY, {});
     if (q && ((q.steel && q.steel.pieces != null && q.steel.mainPieces == null) ||
+      (q.steel && q.steel.mainPieces != null && q.steel.wireBuyKg == null) ||
       (q.paint && q.paint.gallons != null && q.paint.cans == null) ||
       (q.tile && q.tile.boxes != null && q.tile.adhesiveBags == null) ||
       (q.nail && q.nail.kg != null && q.nail.buyKg == null) ||
       (q.concrete && q.concrete.vol != null && q.concrete.sand == null))) {
-      throw new Error('Old-format quantities detected. Recalculate the old materials or use Clear Material Quantities before costing.');
+      throw new Error('Old-format quantities detected (some do not include tie wire). Recalculate those materials or use Clear Material Quantities before costing.');
     }
-    var r = BuildCalcEngine.cost(q && typeof q === 'object' ? q : {}, prices);
-    if (!r.lines.length && !r.labor) throw new Error('Calculate at least one material first or enter labor.');
+    var active = getActiveProject();
+    var useProject = field('cost-source') === 'project' && active && active.items.length > 0;
+    if (useProject) prices.rateOverrides = active.priceOverrides || {};
+    var r = useProject ? BuildCalcEngine.projectSummary(active.items, prices) :
+      BuildCalcEngine.cost(q && typeof q === 'object' ? q : {}, prices);
+    if (!r.lines.length && !r.labor) throw new Error('Calculate a material or add items to the active project first.');
     saveJSON(PRICE_KEY, prices);
     var rows = r.lines.map(function (line) {
-      return { label: line.label, fil: fmt(line.qty, 6) + ' ' + line.unit + ' × ' + money(line.price), value: money(line.amount) };
+      return { label: line.label, fil: fmt(line.qty, 6) + ' ' + line.unit + ' × ' + money(line.rate == null ? line.price : line.rate), value: money(line.amount) };
     });
-    if (r.labor) rows.push({ label: 'Labor', fil: r.workers + ' worker(s) × ' + fmt(r.days, 1) + ' day(s) × ' + money(Number(prices.labor)), value: money(r.labor) });
+    if (r.labor) rows.push({ label: 'Labor', fil: prices.workers + ' worker(s) × ' + fmt(Number(prices.days), 1) + ' day(s) × ' + money(Number(prices.labor)), value: money(r.labor) });
     var totals = [
       { label: 'Materials Subtotal', fil: 'All priced materials', value: money(r.materials) },
       { label: 'Labor Subtotal', fil: 'Workers × days × rate', value: money(r.labor) },
@@ -413,10 +449,10 @@ function runCost(silent) {
       { label: 'Contingency', fil: field('cost-contingency') + '% of direct cost plus overhead', value: money(r.contingency) },
       { label: 'Grand Total', fil: 'Estimated project amount', value: money(r.total) }
     ];
-    var note = 'Latest quantity per module only; prices in PHP. ' +
+    var note = (useProject ? 'Full active project: ' + active.name + ' (' + active.items.length + ' entries). ' : 'Latest quantity per module only (no project entries or legacy mode). ') + 'Prices in PHP. ' +
       (r.warnings.length ? 'Missing price(s): ' + r.warnings.join(', ') + '. ' : '') +
       'Supplier rates, hauling, tax treatment and project scope must be verified.';
-    resultRows('Material & Labor Estimate', field('cost-project-name').trim() || 'Combined material estimate', rows, note, totals);
+    resultRows('Material & Labor Estimate', field('cost-project-name').trim() || (useProject ? active.name : 'Combined material estimate'), rows, note, totals);
     currentResult.grandTotal = r.total;
     return r;
   }, silent);
@@ -667,6 +703,7 @@ function wireForms() {
       input.addEventListener(evt, function() {
         if (form.dataset.module === 'converter') return;
         if (input.id === 'steel-project') updateSteelFields();
+        if (input.id === 'conc-project') updateConcreteFields();
         if (input.id === 'tile-size') updateTileBoxDefault();
         if (input.id === 'paint-type') {
           $('#paint-coverage').value = BuildCalcEngine.constants.paint[field('paint-type')];
@@ -693,6 +730,7 @@ function wireForms() {
         $all('.chip', form).forEach(function(c) { var a = c.dataset.value === '12'; c.classList.toggle('is-active', a); c.setAttribute('aria-checked', String(a)); });
         updateSteelFields();
       }
+      if (form.dataset.module === 'concrete') updateConcreteFields();
       if (form.dataset.module === 'paint') { $('#paint-primer').disabled = false; }
       if (form.dataset.module === 'converter') updateConverter();
       else runCalc(form, true);
@@ -700,7 +738,7 @@ function wireForms() {
   });
 }
 function exportBackup() {
-  var backup = { app: 'BuildCalc', version: 2, exportedAt: new Date().toISOString(),
+  var backup = { app: 'BuildCalc', version: 3, projects: getProjects(), activeProject: localStorage.getItem(ACTIVE_PROJECT_KEY), exportedAt: new Date().toISOString(),
     saved: getSaved(), quantities: loadJSON(QUANT_KEY, {}), prices: loadJSON(PRICE_KEY, {}) };
   var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   var url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -720,11 +758,18 @@ function importBackup(file) {
           !data.saved.every(function(e) { return e && typeof e === 'object' && Array.isArray(e.rows) && e.rows.length <= 200 &&
             e.rows.every(function(r) { return r && typeof r === 'object' && typeof r.label === 'string' && typeof r.value === 'string'; }); }))
         throw new Error('Not a compatible BuildCalc backup.');
-      if (!window.confirm('Restore backup? It will replace saved estimates, quantities and prices on this device.')) return;
+      if (data.projects != null && (!Array.isArray(data.projects) || data.projects.length > 100 ||
+          !data.projects.every(function(project) { return project && typeof project.name === 'string' && project.name.length <= 100 &&
+          typeof project.id === 'string' && Array.isArray(project.items) && project.items.length <= 1000 &&
+          project.items.every(function(item) { return item && typeof item.module === 'string' && typeof item.label === 'string' && item.label.length <= 140 && item.qty && typeof item.qty === 'object'; }); })))
+        throw new Error('Invalid project sheets in backup.');
+      if (!window.confirm('Restore backup? This will replace saved estimates, project sheets, quantities and prices on this device.')) return;
       if (!saveJSON(STORE_KEY, data.saved)) return;
       if (!saveJSON(QUANT_KEY, data.quantities && typeof data.quantities === 'object' ? data.quantities : {})) return;
       if (!saveJSON(PRICE_KEY, data.prices && typeof data.prices === 'object' ? data.prices : {})) return;
-      restorePrices(); renderSaved();
+      if (!saveJSON(PROJECT_KEY, data.projects || [])) return;
+      localStorage.setItem(ACTIVE_PROJECT_KEY, data.activeProject || '');
+      restorePrices(); renderSaved(); renderProjects();
       toast('Backup restored. Review inputs and prices.', 'fa-file-import');
     } catch(e) { toast(e.message || 'Could not read backup.', 'fa-triangle-exclamation'); }
   };
@@ -733,7 +778,7 @@ function importBackup(file) {
 function restorePrices() {
   var p = loadJSON(PRICE_KEY, null);
   if (!p || typeof p !== 'object') return;
-  ['cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor'].forEach(function(key) {
+  ['wire','cement','steel','ties','paint','primer','tile','adhesive','grout','nails','sand','gravel','labor'].forEach(function(key) {
     if (p[key] != null && Number.isFinite(Number(p[key])) && Number(p[key]) >= 0) $('#price-' + key).value = p[key];
   });
   ['days','workers'].forEach(function(key) {
@@ -761,6 +806,7 @@ function init() {
 
   /* result actions */
   $("#btn-save").addEventListener("click", saveCurrent);
+  $('#btn-add-project').addEventListener('click', addCurrentToProject);
   $("#btn-print").addEventListener("click", function () {
     if (currentResult) printEntry({
       title: currentResult.title, sub: currentResult.sub,
@@ -790,7 +836,8 @@ function init() {
   });
 
   restorePrices();
-  updateSteelFields();
+  updateSteelFields(); updateConcreteFields();
+  initProjects();
   $('#btn-clear-quantities').addEventListener('click', function() {
     if (window.confirm('Clear all calculated material quantities? Saved reports will remain.')) {
       localStorage.removeItem(QUANT_KEY);

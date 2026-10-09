@@ -1,57 +1,91 @@
-# BuildCalc v2 — Audited Construction Material Estimator
+# BuildCalc v3 — Anilyo, Column Splices and Project BOQ Sheets
 
-**What this is:** A fully offline, static HTML/CSS/JavaScript preliminary material quantity and cost estimator. There is **no server, account login, database or synced storage**. Entries remain in the current browser's `localStorage` until cleared. Backups are available in **Saved → Backup JSON**.
+A **standalone, offline-first HTML/CSS/JavaScript** preliminary construction quantity estimator. This update builds on BuildCalc v2. It does not require an account, database, or internet connection.
 
-## Start
+## Getting started
 
-1. Extract the entire ZIP, preserving its `assets/` directory.
-2. Open `index.html` in a current browser. If your browser restricts local-file storage, use a local HTTP server, e.g. from the extracted folder: `python -m http.server 8000`, then visit `http://localhost:8000`.
-3. Run each material calculator, then **Cost**. The Cost tab uses the **most recent successful quantity in each material module**. It is *not* a multi-project bill of quantities.
-4. Fill **real supplier prices** and choose compatible packaging units; the initial price fields are illustrative only. A zero price is flagged and makes the total incomplete.
-5. Save estimates and export printable/PDF reports. Back up frequently using **Saved → Backup JSON**.
+1. Extract all files from the ZIP into one directory. Open `index.html` in Chrome, Firefox, or Edge. If browser-local storage is blocked under `file://`, run `python -m http.server 8000` from the extracted folder, then browse to `http://localhost:8000`.
+2. In **Calculator → Steel**, choose *Column (Haligi)*, *Footing (Pundasyon)*, or another construction section. Choose the **6 m, 9 m, or 12 m** stock length and all other dimensions and allowances.
+3. Enter the **number of identical elements**. For a column, enter the **height above finished floor level**, the **additional height below FFL/hukay**, and any **bottom/top hooks or anchorage lengths** specified on the drawings. Those depths are added once, not twice.
+4. For a bar run requiring a splice, enter the **lap/overlap length from the project's approved structural drawings**. The calculator can estimate required splice segments and stock pieces. The tie/stirrup hook tail and tie-wire quantities are editable too.
+5. Click **Add to Project Sheet** below any steel, concrete, paint, tile, or nail calculation. Give the entry a useful name, e.g. `Footing F1 — 3 units`, `Poste C1`, `Footing F1 concrete`.
+6. Open **Project Sheets** to see the grouped **Pundasyon, Poste, Biga, Slab**, and other detail sheets, their **section material summaries**, and one **consolidated project procurement/cost summary**.
+7. Set default prices in **Calculator → Cost**. Override individual row prices directly from the Project Sheets' consolidated material table (useful for different rebar diameters and 6/9/12m stock lengths). Price overrides persist per project.
+8. Export **Full Report PDF** or **Print Sheets**. Printed/PDF reports begin a new page for each project section and include a final combined project summary. Back up data from **Saved → Backup JSON**; v3 backups also contain projects and bar-size price overrides.
 
-## Major fixes
+## Computation details
 
-- Rewired **Calculate / Compute Total** buttons (previously no button click listeners were present).
-- Extracted isolated, tested `calc-engine.js` quantity/cost calculation functions.
-- **Concrete** now lets you specify class AA/A/B/C, element count and an allowance, using Fajardo-style **40-kg cement bag** per-m³ estimating factors (AA: 12, A: 9, B: 7.5, C: 6 bags per m³; sand: 0.5 m³ per m³ concrete; gravel: 1.0 m³ per m³). Do not treat these as engineering concrete mixes or strength specifications.
-- **Steel** replaced the one-formula-for-everything approximation with two basic takeoff modes: two-direction grid for slab/footing/stairs and user-entered longitudinal bars + stirrups for beam/column/fence. Includes spacing, clear cover, approximate cut lengths, 6/12m stock, separate tie diameter, purchase rounding, and refusal when a single run exceeds stock length (laps/splices require engineering input).
-- **Paint** subtracts openings, supports user-entered finish/primer coverage, adjustable allowances, optional primer, 4L/3.785L/1L/16L containers and whole-container purchase quantities. Primer-only paint uses the primer price in costs.
-- **Tiles** calculates pieces, supplier-specified pieces/box, boxes, adhesive bags from entered product coverage (default 5 m² per 25kg bag + 10% allowance), grout from editable kg/m² rate.
-- **Nails** uses actual entered fastening spacing (previously ignored), nails per joint, material-specific rough nail mass, allowance, and rounded purchasing weight. Nail counts are *not* a substitute for roofing/structural fastening schedules.
-- **Cost** now includes main/tie steel, cement, sand, gravel, finish paint, primer, tile boxes, tile adhesive, grout, nails, labor workers × days × rate, overhead and contingency. All quantities and prices retain explicit units. Old incompatible quantities must be recalculated to prevent silently incomplete totals.
-- **Saved estimates** can reopen their input values. Export/import backup of saved results, latest quantities and price fields. Escaped saved text/report HTML to reduce injection risk. Repaired PDF peso-sign compatibility via `PHP` in its default Helvetica font, and rendered/inspected a sample A4 PDF.
-- Prevents keeping a stale result visible when calculation inputs are invalid. Improved cost layout and mobile spacing.
+### Column/poste bars
 
-## Method notes and limitations
+The estimator uses the following **user-entered allowances**:
 
-- These are preliminary **quantity take-offs**, **not structural designs**. Confirm bar locations, number of layers, tie spacing, hooks, bends, anchorage, cover, lap lengths and cutting schedules with approved structural drawings.
-- Stock counts are conservative repeated-cut estimates separated by bar orientation/diameter. Shared offcuts, cutting optimization and lap splice details are not modeled.
-- Concrete class is **selected by the user** and must match an authorized specification. Actual mix proportions, slump, water, strength, ready-mix yield and site loss are project-dependent; water quantity was removed because a single constant creates false certainty.
-- Tile grout rate and nail counts are highly dependent on installation details and must be confirmed against product datasheets. Tile adhesive coverage depends on trowel and substrate; default rate should be edited for the purchased product.
-- Paint coverage and can sizes vary by manufacturer; 4 L is the default in the app and is **not identical to a US gallon of 3.785 L**.
-- Estimate totals do not automatically include VAT treatment, delivery, permits, hauling, equipment rental, subcontractor fees, excavation or wastage outside entered allowances. You must add these through proper project line items outside this prototype.
-- Data from the original v1 may be present in localStorage. Historical saved results remain readable, but **quantity schema changed**. Run all modules again (or Clear Material Quantities) before relying on the cost calculator.
-- Backup is local JSON only; there is no cloud synchronization or multiuser collaboration.
+```text
+Unspliced main-bar run = height above FFL + depth below FFL + bottom anchorage/hook + top anchorage/hook
+Total cut length per longitudinal bar = unspliced run + (number of splice overlaps × entered lap length)
+Required automatic splices when the run exceeds the chosen stock length:
+  minimum count permitting each cut segment to fit within stock length after overlap.
 
-## Source references for estimating defaults (verify product/edition)
+Column stirrups count = (ceil((height above FFL + depth below FFL) / entered stirrup spacing) + 1)
+  × number of identical elements
+Approximate rectangular anilyo cut length = 2 × (width - 2×cover + depth - 2×cover)
+  + 2 × (entered stirrup hook-tail multiplier × stirrup diameter)
+  Note: hook allowance in bar diameters must be converted from mm to m.
+```
 
-- Max Fajardo Jr., *Simplified Construction Estimate*, Concrete Table 1-2, as reproduced online: https://www.scribd.com/document/565386444/Simplified-Construction-Estimate-Third-Edition-Max-Fajardo-Jr-Enhanced-PDF
-- Additional reproduced text/explanation: https://studylib.net/doc/28292469/simplified-estimate-by-max-fajardo-pdf-pdf-free
-- SkyBird Tile Adhesive, 25kg coverage 5m² at 3mm: https://skybirdph.com/products-tile-adhesive/
-- Boysen Konstrukt K-302, 25kg coverage 4–6m² depending on surface: https://www.boysen.com.ph/products/konstrukt-tileworks-k-321-tile-adhesion-promoter-and-k-302-all-purpose-tile-adhesive/
+The approximation **does not design splice locations or check structural hook/development rules**. The algorithm splits a long bar into **approximately equal cut segments** for preliminary stock purchasing. Actual fabricator bar bending, development length, splice location, seismic confinement, 135-degree ties and concrete cover must be taken from signed structural documents.
 
-## Automated checks
+For **grid footing/slab/stairs**, the calculator counts two directions of bars, applicable layers, element count, overlaps for bar runs longer than stock, and wire tie intersections. Stairs are only a **grid approximation**, not full stepped/stringer reinforcement design. Footing bends and special dowels beyond entered run allowances are **not** automatically added.
 
-- `node tests/test-engine.cjs` — pure numerical unit tests covering examples, bounds and cost subtotals.
-- `python tests/test-browser.py` — Chromium/Playwright browser smoke tests for all modules, saving, reopen, PDF generation, backup and restore, and HTML escaping. Python Playwright and Chrome/Chromium are prerequisites. Browser smoke test embeds local assets to avoid relying on an HTTP server; it substitutes an in-memory localStorage for its synthetic origin.
+### Tie wire / alambre
 
-## Recommended next development phases
+Wire is derived from estimated reinforcing-bar intersections, **wire pieces per intersection**, entered **cut length per wire tie** (default 30 cm), **grams per meter of wire** (editable default 15.8 g/m, approximately #16 gauge), and **waste allowance** (default 10%). On the **project summary**, raw wire quantities are combined and **rounded up once to the nearest 0.5 kg**. Site tying patterns and actual wire products differ.
 
-1. Add real projects and multiple room/floor/element line items (BOQ), quantity additions, revisions, and no cross-project mixing.
-2. Add detailed CHB, plaster, mortar, roofing, wood/formworks calculators with validated take-off assumptions.
-3. Add supplier price catalogs per region/date, unit-price updates, procurement pack-size controls, and optional VAT/haulage/markup templates.
-4. Add printable professional BOQs, itemized labor productivity and exportable CSV/Excel sheets.
-5. If commercialized: authenticated project storage, roles, cloud backups, audit history, and deployment security/privacy review.
+### Illustrative column example (these are example dimensions, NOT code-compliant design defaults)
 
-**Safety:** Do not use this app alone to specify structural steel or concrete for actual construction. Have the results reviewed against an engineer's drawings and current manufacturer data.
+- Four 12 mm longitudinal bars in a **300 mm × 400 mm** column; 6.0 m above floor + **1.5 m** below floor + **0.4 m bottom hook** + **0.2 m top hook** = **8.1 m unspliced run** per main bar.
+- Using a project-specified **0.6 m overlap** with **6 m stock**, each longitudinal bar needs a **single overlap** and two preliminary **4.35 m cut segments**, for **8 purchased 6 m main stock bars** in this simple layout (no shared offcut reuse). With 9 m or 12 m stock, the example requires **4 main stock bars** with no splice.
+- At 150 mm spacing, ties along 7.5 m height = **51 ties**, using the user-entered section, cover, and tie-hook allowance.
+- Four intersections per tie (204 junctions) at 30 cm of #16 wire and 10% allowance = **1.064 kg**, rounded to **1.5 kg** when purchased as an individual element. If multiple entries share one project, **purchase rounding happens after aggregation**.
+
+### Multi-project reporting
+
+- Supports up to 100 local projects and 1,000 items per project (practical performance will depend on your device).
+- Project entries are **snapshots**: changes to calculator inputs do **not** update an existing project item unless you select its **Edit** button and explicitly **Update Project Item**.
+- A group's **section material subtotal** uses per-section purchase rounding and can be **greater than the consolidated project subtotal** because stock cutting and tie-wire purchasing are grouped across the project; do not add section subtotals to reconstruct the project grand total.
+- Global purchasing bars are grouped by **role (main/tie), diameter, and stock length**, using a preliminary **first-fit-decreasing cutting estimator** across matching groups. Different role/diameter/stock bars are not pooled. Actual cut schedules can differ.
+- Consolidated quantities of paint cans, cement bags, adhesives, tiles, and nails are summed from individually rounded entries; some bulk procurement may save additional material after final supplier packaging and cut planning.
+- Site rates are **not live supplier quotations**. Zero rates are clearly flagged. Cost mode supports **Project Sheet** (all entries) or **Legacy latest-per-module**.
+
+### Concrete below floor level
+
+For a **column concrete** entry only, the below-FFL height field is **added** to the entered above-floor concrete height. This is a measurement convenience, **not a statement that a 1.5 m excavation should all be poured as a column**. Count only concrete actually specified in the structural documents; isolate pad footings, pedestals and other concrete components as separate items to avoid duplicate volumes.
+
+### Other material estimators
+
+Concrete's nominal class AA/A/B/C consumption factors remain **preliminary table-style factors based on 40kg bags**, inspired by references to Max Fajardo Jr.'s *Simplified Construction Estimate*. They **are not engineered concrete mix design**. Paint, tiles, adhesive, nails and old individual Saved estimates remain available.
+
+## Storage, data migration, and privacy
+
+- Everything is stored in **your own browser's localStorage**; projects are under `buildcalc.projects.v3`, active project selection under `buildcalc.activeproject.v3`. Existing v2 saved calculations, price fields and module quantities use their original storage keys and are not cleared by installing new source files.
+- Existing saved reports do **not** automatically become project line items; recalculate and add them intentionally. Old-format steel quantities without tie-wire data are now rejected in legacy Cost mode until recalculated.
+- **Back up JSON before restoring** on another device. Restoring replaces existing saved reports, project sheets, prices, and legacy quantities on the device.
+- No server or online account is included. Browser data can disappear after clearing site data, using incognito/private browsing, switching host URL, or device failure.
+
+## Testing
+
+From the unzipped folder:
+
+```bash
+node tests/test-engine.cjs
+node tests/test-project-engine.cjs
+python tests/test-browser.py
+python tests/test-project-browser.py
+```
+
+The browser tests require Python `playwright` with Chromium. The new tests cover **excavation/FFL + hook and splice lengths**, **stock bars 6/9/12 m**, **wire consumption**, **multi-element section project totals**, **editing without duplication**, **price overrides**, **PDF section pages + combined summary**, **backup/restore**, **legacy calculators**, and **375 px mobile overflow**. Sample project PDF from test has three A4 pages (foundation sheet, column sheet, consolidated summary).
+
+## License note
+
+UI uses local **SVG icon paths** from *Font Awesome Free* (Fonticons, Inc.), CC BY 4.0, attribution: https://fontawesome.com/license/free. The resulting website does **not** distribute icon fonts. Includes a locally supplied jsPDF runtime for offline reports.
+
+**Engineering caveat:** All modules are preliminary quantity estimators, not a replacement for approved structural plans, a licensed structural engineer, actual bar fabrication schedules, supplier data, or local applicable design codes.
