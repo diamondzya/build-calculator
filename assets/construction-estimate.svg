@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="420" viewBox="0 0 560 420" fill="none">
+  <title>Construction planning and material estimation</title>
+  <desc>An isometric concrete building frame, tower crane, stacked blocks and a measured floor plan in warm orange and stone tones.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse" patternTransform="matrix(1 .5 -1 .5 280 60)">
+      <path d="M32 0H0V32" stroke="#E8D9C6" stroke-opacity=".08"/>
+    </pattern>
+    <linearGradient id="slab" x1="146" y1="196" x2="405" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2E8D9"/><stop offset="1" stop-color="#B9A68E"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="392" y1="68" x2="433" y2="261" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD08A"/><stop offset="1" stop-color="#E99138"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="24" width="536" height="380" rx="32" fill="url(#grid)"/>
+  <ellipse cx="286" cy="343" rx="218" ry="46" fill="#000" fill-opacity=".16"/>
+  <!-- Tower crane -->
+  <g stroke="#EAA554" stroke-width="3" stroke-linejoin="round">
+    <path d="M433 299V69h-17v230" fill="url(#orange)" fill-opacity=".1"/>
+    <path d="m416 92 17 20-17 20 17 20-17 20 17 20-17 20 17 20-17 20 17 20-17 20M416 92h17M416 132h17M416 172h17M416 212h17M416 252h17"/>
+    <path d="M286 69h218V53H286Z" fill="#624631"/>
+    <path d="m286 69 20-16 20 16 20-16 20 16 20-16 20 16 20-16 20 16 20-16 20 16"/>
+    <path d="m321 53 104-29 67 29M425 24v29"/>
+    <path d="M317 69v62m-6 0v8a6 6 0 0 0 12 0" stroke="#FFE0B1"/>
+  </g>
+  <path d="M407 296h35l12 9-26 12-33-13Z" fill="#8D7862"/>
+  <path d="M477 70h28v20h-28Z" fill="#A38D74"/>
+  <path d="M417 72h30v24h-30Z" fill="#EAAF64"/>
+  <path d="M422 76h20v14h-20Z" fill="#433D36"/>
+  <!-- Foundation -->
+  <path d="m119 269 163-80 148 74-163 84Z" fill="#62584B"/>
+  <path d="m119 269 148 73 163-79v14l-163 80-148-74Z" fill="#3D3832"/>
+  <path d="m134 264 144-70 136 68-147 72Z" fill="url(#slab)"/>
+  <!-- Lower columns -->
+  <g fill="#C1AD92" stroke="#85735F" stroke-width="1.5">
+    <path d="m155 202 12 6v62l-12-6Z"/>
+    <path d="m203 226 12 6v61l-12-6Z"/>
+    <path d="m256 252 12 6v62l-12-6Z"/>
+    <path d="m386 202 12-6v62l-12 6Z"/>
+    <path d="m330 230 12-6v62l-12 6Z"/>
+    <path d="m279 150 12 6v62l-12-6Z"/>
+  </g>
+  <!-- Middle slab -->
+  <path d="m143 197 138-68 129 64-144 73Z" fill="url(#slab)"/>
+  <path d="m143 197 123 60 144-64v11l-144 72-123-61Z" fill="#9A856A"/>
+  <path d="m266 257 144-64v11l-144 72Z" fill="#786751"/>
+  <!-- Upper columns -->
+  <g fill="#E7D7BE" stroke="#A38E72" stroke-width="1.5">
+    <path d="m155 124 12 6v66l-12-6Z"/>
+    <path d="m203 148 12 6v66l-12-6Z"/>
+    <path d="m256 174 12 6v65l-12-6Z"/>
+    <path d="m386 124 12-6v68l-12 6Z"/>
+    <path d="m330 152 12-6v68l-12 6Z"/>
+    <path d="m279 72 12 6v67l-12-6Z"/>
+  </g>
+  <!-- Open roof beams -->
+  <path d="m143 119 138-68 129 64-144 73Zm26 0 97 48 118-52-103-51Z" fill="#F1E4CF" fill-rule="evenodd"/>
+  <path d="m143 119 123 60 144-64v10l-144 73-123-61Z" fill="#A38D6F"/>
+  <path d="m266 179 144-64v10l-144 73Z" fill="#806C54"/>
+  <path d="m215 91 124 61 11-6-124-60Z" fill="#E8D7BC"/>
+  <path d="m203 149 135-66 11 6-135 66Z" fill="#C9B497"/>
+  <!-- Rebar on unfinished corner -->
+  <g stroke="#EBAD60" stroke-width="2.5" stroke-linecap="round">
+    <path d="M157 118V95m8 26V98m93 73v-24m8 28v-24M390 116V92m8 20V88"/>
+  </g>
+  <!-- Dimension lines -->
+  <g stroke="#EAA554" stroke-width="1.5" opacity=".85">
+    <path d="m126 302 135 67m-133-73-6 12m141 55-6 12M291 359l126-62m-129 56 6 12m120-74 6 12" />
+    <path d="m191 324 10 5m133 10 10-5" stroke-width="5"/>
+  </g>
+  <!-- Floor plan -->
+  <path d="m52 280 78 38-58 37-51-27Z" fill="#453E34" stroke="#78644D"/>
+  <path d="m56 278 73 36-57 31-50-26Z" fill="#EDE3D2"/>
+  <g stroke="#937B59" stroke-width="1.6">
+    <path d="m58 289 50 25-36 20-37-18Z"/>
+    <path d="m69 295-24 15m40-7-28 24m-8-11 32-18m-16 34 18-10"/>
+  </g>
+  <path d="m36 340 46 23" stroke="#EAAF64" stroke-width="6" stroke-linecap="round"/>
+  <path d="m82 363 8 1-5-6Z" fill="#EDE3D2"/>
+  <!-- Pallet and masonry blocks -->
+  <path d="m407 325 62-31 57 28-61 32Z" fill="#8D633D"/>
+  <path d="m407 325 58 29 61-32v10l-61 30-58-28Z" fill="#64472E"/>
+  <g fill="#D5C6AF" stroke="#9D8B71" stroke-width="1.5" stroke-linejoin="round">
+    <path d="m422 298 22-11 27 13-22 12Z"/><path d="m422 298 27 14v18l-27-13Z"/><path d="m449 312 22-12v19l-22 11Z" fill="#A08E76"/>
+    <path d="m456 315 23-12 27 14-23 12Z"/><path d="m456 315 27 14v18l-27-13Z"/><path d="m483 329 23-12v18l-23 12Z" fill="#A08E76"/>
+    <path d="m433 278 22-11 27 13-22 12Z"/><path d="m433 278 27 14v18l-27-13Z"/><path d="m460 292 22-12v19l-22 11Z" fill="#A08E76"/>
+  </g>
+  <g fill="#6D6255">
+    <path d="m441 278 7-4 6 3-7 4Zm13 6 7-4 6 3-7 4Z"/>
+    <path d="m464 315 7-4 6 3-7 4Zm13 6 7-4 6 3-7 4Z"/>
+  </g>
+</svg>

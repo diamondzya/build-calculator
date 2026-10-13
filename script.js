@@ -228,8 +228,14 @@ function hideResult() {
 /* =========================================================
    CALCULATORS — all formulas live in calc-engine.js for testability.
    ========================================================= */
-function field(id) { return document.getElementById(id).value; }
-function checked(id) { return document.getElementById(id).checked; }
+function field(id) {
+  var el = document.getElementById(id);
+  return el ? el.value : '';
+}
+function checked(id) {
+  var el = document.getElementById(id);
+  return el ? el.checked : false;
+}
 function priceField(id) { return field('price-' + id); }
 function showError(message, silent) {
   hideResult();
@@ -810,57 +816,89 @@ function runCalc(form, silent) {
   if (m === 'formwork') return runFormwork(silent);
   if (m === 'cost') return runCost(silent);
 }
+// Wire up all forms with modular event handlers for better maintainability
 function wireForms() {
   $all('.calc-form').forEach(function(form) {
-    $all('input, select', form).forEach(function(input) {
-      var evt = input.tagName === 'SELECT' ? 'change' : 'input';
-      input.addEventListener(evt, function() {
-        if (form.dataset.module === 'converter') return;
-        if (input.id === 'steel-project') updateSteelFields();
-        if (input.id === 'conc-project') updateConcreteFields();
-        if (input.id === 'tile-size') updateTileBoxDefault();
-        if (input.id === 'form-type') updateFormworkFields(true);
-        if (input.id === 'form-coverage-preset' && input.value!=='custom') $('#form-coverage').value=input.value;
-        if (input.id === 'form-coverage' && input.value!==$('#form-coverage-preset').value) $('#form-coverage-preset').value='custom';
-        if (input.id === 'form-nail-method') { if(input.value==='fajardo') { $('#form-nail-size').value='1'; $('#form-nail-gram').value='0.9'; } updateFormworkNails(); }
-        if (input.id === 'form-nail-size' && input.value!=='1' && field('form-nail-method')==='fajardo') { $('#form-nail-method').value='site'; updateFormworkNails(); }
-        if (input.id === 'form-nail-size') $('#form-nail-gram').value = BuildCalcEngine.constants.formNails[field('form-nail-size')];
-        if (input.id === 'paint-surface' && input.value!=='manual') {
-          var cov = BuildCalcEngine.constants.paintSurfaceGallon[input.value]/4;
-          $('#paint-coverage').value=cov; $('#paint-primer-coverage').value=cov;
-        }
-        if (input.id === 'paint-type') {
-          if (field('paint-surface')==='manual') $('#paint-coverage').value = BuildCalcEngine.constants.paint[field('paint-type')];
-          $('#paint-primer').disabled = field('paint-type') === 'primer';
-        }
-        runCalc(form, true);
-      });
-    });
-    $all('.chip', form).forEach(function(chip) {
-      chip.addEventListener('click', function() {
-        $all('.chip', form).forEach(function(c) { c.classList.remove('is-active'); c.setAttribute('aria-checked', 'false'); });
-        chip.classList.add('is-active'); chip.setAttribute('aria-checked', 'true');
-        runCalc(form, true);
-      });
-    });
-    var button = $('.calc-btn', form);
-    if (button) button.addEventListener('click', function() {
-      if (runCalc(form, false)) $('#result-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-    form.addEventListener('submit', function(e) { e.preventDefault(); runCalc(form, false); });
-    form.addEventListener('reset', function() { setTimeout(function() {
-      $all('.is-invalid', form).forEach(function(i) { i.classList.remove('is-invalid'); i.removeAttribute('aria-invalid'); });
-      if (form.dataset.module === 'steel') {
-        $all('.chip', form).forEach(function(c) { var a = c.dataset.value === '12'; c.classList.toggle('is-active', a); c.setAttribute('aria-checked', String(a)); });
-        updateSteelFields();
-      }
-      if (form.dataset.module === 'concrete') updateConcreteFields();
-      if (form.dataset.module === 'formwork') { updateFormworkFields(false); updateFormworkNails(); }
-      if (form.dataset.module === 'paint') { $('#paint-primer').disabled = false; }
-      if (form.dataset.module === 'converter') updateConverter();
-      else runCalc(form, true);
-    }, 0); });
+    wireFormInputs(form);
+    wireFormChips(form);
+    wireFormButtons(form);
+    wireFormSubmitReset(form);
   });
+}
+
+function wireFormInputs(form) {
+  $all('input, select', form).forEach(function(input) {
+    var evt = input.tagName === 'SELECT' ? 'change' : 'input';
+    input.addEventListener(evt, function() {
+      if (form.dataset.module === 'converter') return;
+      handleFormInputChange(form, input);
+      runCalc(form, true);
+    });
+  });
+}
+
+function wireFormChips(form) {
+  $all('.chip', form).forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      $all('.chip', form).forEach(function(c) { c.classList.remove('is-active'); c.setAttribute('aria-checked', 'false'); });
+      chip.classList.add('is-active'); chip.setAttribute('aria-checked', 'true');
+      runCalc(form, true);
+    });
+  });
+}
+
+function wireFormButtons(form) {
+  var button = $('.calc-btn', form);
+  if (button) button.addEventListener('click', function() {
+    if (runCalc(form, false)) $('#result-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+}
+
+function wireFormSubmitReset(form) {
+  form.addEventListener('submit', function(e) { e.preventDefault(); runCalc(form, false); });
+  form.addEventListener('reset', function() { setTimeout(function() {
+    $all('.is-invalid', form).forEach(function(i) { i.classList.remove('is-invalid'); i.removeAttribute('aria-invalid'); });
+    if (form.dataset.module === 'steel') {
+      $all('.chip', form).forEach(function(c) { var a = c.dataset.value === '12'; c.classList.toggle('is-active', a); c.setAttribute('aria-checked', String(a)); });
+      updateSteelFields();
+    }
+    if (form.dataset.module === 'concrete') updateConcreteFields();
+    if (form.dataset.module === 'formwork') { updateFormworkFields(false); updateFormworkNails(); }
+    if (form.dataset.module === 'paint') { $('#paint-primer').disabled = false; }
+    if (form.dataset.module === 'converter') updateConverter();
+    else runCalc(form, true);
+  }, 0); });
+}
+
+function handleFormInputChange(form, input) {
+  if (form.dataset.module === 'converter') return;
+  if (input.id === 'steel-project') updateSteelFields();
+  if (input.id === 'conc-project') updateConcreteFields();
+  if (input.id === 'tile-size') updateTileBoxDefault();
+  if (input.id === 'form-type') updateFormworkFields(true);
+  if (input.id === 'form-coverage-preset' && input.value!=='custom') $('#form-coverage').value=input.value;
+  if (input.id === 'form-coverage' && input.value!==$('#form-coverage-preset').value) $('#form-coverage-preset').value='custom';
+  if (input.id === 'form-nail-method') {
+    if(input.value==='fajardo') {
+      $('#form-nail-size').value='1';
+      $('#form-nail-gram').value='0.9';
+    }
+    updateFormworkNails();
+  }
+  if (input.id === 'form-nail-size' && input.value!=='1' && field('form-nail-method')==='fajardo') {
+    $('#form-nail-method').value='site';
+    updateFormworkNails();
+  }
+  if (input.id === 'form-nail-size') $('#form-nail-gram').value = BuildCalcEngine.constants.formNails[field('form-nail-size')];
+  if (input.id === 'paint-surface' && input.value!=='manual') {
+    var cov = BuildCalcEngine.constants.paintSurfaceGallon[input.value]/4;
+    $('#paint-coverage').value=cov;
+    $('#paint-primer-coverage').value=cov;
+  }
+  if (input.id === 'paint-type') {
+    if (field('paint-surface')==='manual') $('#paint-coverage').value = BuildCalcEngine.constants.paint[field('paint-type')];
+    $('#paint-primer').disabled = field('paint-type') === 'primer';
+  }
 }
 function exportBackup() {
   var backup = { app: 'BuildCalc', version: 6, projects: getProjects(), activeProject: localStorage.getItem(ACTIVE_PROJECT_KEY), exportedAt: new Date().toISOString(),
@@ -924,7 +962,7 @@ function init() {
   initConverter();
 
   /* nav */
-  $all(".nav-btn").forEach(function (b) {
+  $all(".main-nav .nav-btn[data-view]").forEach(function (b) {
     b.addEventListener("click", function () { showView(b.dataset.view); });
   });
   $("#btn-start").addEventListener("click", function () { showView("calculators"); selectModule("steel"); });
